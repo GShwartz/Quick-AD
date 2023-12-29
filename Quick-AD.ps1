@@ -1,4 +1,9 @@
-﻿# Import form modules
+﻿# 1. Finish the tooltips
+# 2. Add settings with option to change the tooltip popup time.
+# 3. Add statusbar updates
+
+
+# Import form modules
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System
@@ -58,6 +63,52 @@ function ManageFormClose() {
     }
 }
 
+# Import necessary assemblies
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+
+# Function to create the About window
+function ShowAboutWindow {
+    $aboutForm = New-Object System.Windows.Forms.Form
+    $aboutForm.Text = "QuicK-AD"
+    $aboutForm.Width = 300
+    $aboutForm.Height = 200
+    $aboutForm.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
+    $aboutForm.MaximizeBox = $false
+    $aboutForm.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
+
+    $labelScripter = New-Object System.Windows.Forms.Label
+    $labelScripter.Text = "Written by: Gil Shwartz"
+    $labelScripter.Location = New-Object System.Drawing.Point(10, 10)
+    $labelScripter.AutoSize = $true
+
+    $labelVersion = New-Object System.Windows.Forms.Label
+    $labelVersion.Text = "Version: 1.0.0"
+    $labelVersion.Location = New-Object System.Drawing.Point(10, 40)
+
+    $linkGitHub = New-Object System.Windows.Forms.LinkLabel
+    $linkGitHub.Text = "GitHub"
+    $linkGitHub.Location = New-Object System.Drawing.Point(10, 70)
+    $linkGitHub.AutoSize = $true
+    $linkGitHub.Add_LinkClicked({
+        [System.Diagnostics.Process]::Start("https://github.com/GShwartz/Quick-AD/tree/main")
+    })
+
+    $buttonOK = New-Object System.Windows.Forms.Button
+    $buttonOK.Text = "OK"
+    $buttonOK.DialogResult = [System.Windows.Forms.DialogResult]::OK
+    $buttonOK.Location = New-Object System.Drawing.Point(100, 120)
+
+    # Add controls to the form
+    $aboutForm.Controls.Add($labelVersion)
+    $aboutForm.Controls.Add($labelScripter)
+    $aboutForm.Controls.Add($linkGitHub)
+    $aboutForm.Controls.Add($buttonOK)
+
+    # Show the form
+    $aboutForm.ShowDialog()
+}
+
 # ============== MAIN SECTION =================== #
 # Log Action
 LogScriptExecution -logPath $logFilePath -action ("= " * 35) -userName $env:USERNAME
@@ -84,7 +135,7 @@ $form.MaximizeBox = $false
 
 # Create a top menu strip
 $global:menuStrip = New-Object System.Windows.Forms.MenuStrip
-$global:menuStrip.Height = 24
+$global:menuStrip.Height = 12
 $global:menuStrip.BackColor = [System.Drawing.Color]::Wheat
 
 # File menu
@@ -99,7 +150,7 @@ $exitMenuItem.Add_Click({
 $helpMenu = $global:menuStrip.Items.Add("Help")
 $helpMenuAbout = $helpMenu.DropDownItems.Add("About")
 $helpMenuAbout.Add_Click({
-    [System.Windows.Forms.MessageBox]::Show("Quick-AD Version: $($version)", "About", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+    ShowAboutWindow
 })
 
 # Create labels
@@ -124,6 +175,58 @@ $global:buttonRemoveGroups = CreateButton -text "Remove Groups" -x 310 -y 200 -w
 $global:buttonMoveOU = CreateButton -text "Move OU" -x 310 -y 240 -width 120 -height 25 -enabled $false
 $global:buttonExit = CreateButton -text "Exit" -x 330 -y 300 -width 80 -height 25 -enabled $true
 
+# ============== TOOLTIPS =================== #
+# ________====== Find AD User ======_________ #
+# Create the buttonFindADUser tooltip
+$buttonFindADUserTooltip = New-Object System.Windows.Forms.ToolTip
+$buttonFindADUserTooltip.SetToolTip($buttonFindADUser, "Find AD User")
+
+# Event handler for the MouseHover event on buttonFindADUser
+$buttonFindADUser.Add_MouseHover({
+    Start-Sleep -Seconds 2
+    $buttonFindADUserTooltip.Show("Search for an Active Directory user account.", $buttonFindADUser, 0, -$button.Height)
+})
+
+# Event handler for the MouseLeave event on buttonFindADUser
+$buttonFindADUser.Add_MouseLeave({
+    $buttonFindADUserTooltip.Hide($buttonFindADUser)
+})
+
+# Event handler for the Popup event on the tooltip
+$buttonFindADUserTooltip.Add_Popup({
+    if (-not $buttonFindADUser.ClientRectangle.Contains($buttonFindADUser.PointToClient([System.Windows.Forms.Cursor]::Position))) {
+        $buttonFindADUserTooltip.Hide($buttonFindADUser)
+    }
+})
+
+# ________====== Find AD Computer ======_________ #
+# Create the buttonFindComputer tooltip
+$buttonFindComputerTooltip = New-Object System.Windows.Forms.ToolTip
+$buttonFindComputerTooltip.SetToolTip($buttonFindComputer, "Find AD Computer")
+
+# Event handler for the MouseHover event on buttonFindComputer
+$buttonFindComputer.Add_MouseHover({
+    Start-Sleep -Seconds 2
+    $buttonFindComputerTooltip.Show("Search for an Active Directory Computer account.", $buttonFindComputer, 0, -$button.Height)
+})
+
+# Event handler for the MouseLeave event on buttonFindComputer
+$buttonFindComputer.Add_MouseLeave({
+    $buttonFindComputerTooltip.Hide($buttonFindComputer)
+})
+
+# Event handler for the Popup event on the tooltip
+$buttonFindComputerTooltip.Add_Popup({
+    if (-not $buttonFindComputer.ClientRectangle.Contains($buttonFindComputer.PointToClient([System.Windows.Forms.Cursor]::Position))) {
+        $buttonFindComputerTooltip.Hide($buttonFindComputer)
+    }
+})
+
+
+
+
+
+# ============== EVENT HANDLERS =================== #
 # Event handler for mouse down on AD Username textbox
 $textboxADUsername.Add_MouseDown({
     $textboxADComputer.Text = ""
@@ -458,20 +561,8 @@ $buttonCopyGroups.Add_Click({
     # Disable the FindADUser button
     $buttonFindADUser.Enabled = $false
 
-    # Define parameters
-    $copyGroupsParameters = @{
-        logFilePath             = $logFilePath
-        adUsername              = $global:primaryUser
-        buttonFindADUser        = $buttonFindADUser
-        buttonResetPassword     = $buttonResetPassword
-        buttonReEnable      = $buttonReEnable
-        buttonGeneratePassword  = $buttonGeneratePassword
-        buttonCopyGroups        = $buttonCopyGroups
-        buttonMoveOU            = $buttonMoveOU
-    }
-
     # Show Copy Groups form
-    ShowCopyGroupsForm @copyGroupsParameters
+    ShowCopyGroupsForm
 })
 
 $buttonRemoveGroups.Add_Click({
