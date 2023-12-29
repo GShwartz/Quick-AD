@@ -77,3 +77,4 @@ Quick-AD is a PowerShell script designed to streamline common Active Directory (
 ## Notes
 
 - The script logs activities in a file named "Quick-AD.log" in the script directory.
+- The example CSV files are for you to get the headers and fill in the appropriate data to them. (example: ComputerName header will have computer accounts under it)
