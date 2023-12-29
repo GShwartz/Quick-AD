@@ -74,10 +74,6 @@ Quick-AD is a PowerShell script designed to streamline common Active Directory (
 7. **OU Operations:**
    - Move users or computers to different OUs.
 
-## Requirements
-
-- PowerShell 5.1 or later.
-
 ## Notes
 
 - The script logs activities in a file named "Quick-AD.log" in the script directory.
