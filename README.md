@@ -12,6 +12,43 @@ Quick-AD is a PowerShell script designed to streamline common Active Directory (
 - **Group Management:** Copy, remove, and manipulate user group memberships.
 - **Organizational Unit (OU) Operations:** Move users or computers to different OUs within the AD structure.
 
+## Installation
+
+### Prerequisites
+
+- [PowerShell 5.1](https://docs.microsoft.com/en-us/powershell/scripting/install/installing-powershell) or later.
+- Windows Server operating system with AD.
+
+### Steps
+
+1. **Download the Script:**
+   - Click on the "Code" button on the GitHub repository.
+   - Choose "Download ZIP" to download the script files.
+
+2. **Extract the ZIP File:**
+   - Extract the downloaded ZIP file to a location of your choice.
+
+3. **Run PowerShell as Administrator:**
+   - Right-click on the `Quick-AD.ps1` file.
+   - Select "Run with PowerShell". (Optional: choose "Run as Administrator" from the context menu).
+
+4. **Set Execution Policy (if needed):**
+   - If you encounter an "Execution Policy" error, open a PowerShell window as an administrator and run the command:
+     ```powershell
+     Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+     ```
+
+5. **Run the Script:**
+   - Navigate to the directory where you extracted the files.
+   - Run the main script by executing:
+     ```powershell
+     .\Quick-AD.ps1
+     ```
+
+6. **Enjoy Quick-AD:**
+   - The script will launch a graphical user interface for managing AD tasks.
+
+   
 ## How to Use
 
 1. **Launching the Script:**
