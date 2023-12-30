@@ -632,10 +632,12 @@ function ResetCSV {
                 [System.Windows.Forms.MessageBox]::Show("Passwords cleared from the CSV file.", "Clear Passwords", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
                 
                 $global:buttonGeneratePassword.Enabled = $true
-                
-                # Open the CSV file
-                Start-Process -FilePath $global:textboxCSVFilePath.Text
+                $global:buttonResetPassword.Enabled = $false
+                $global:buttonCopyGroups.Enabled = $false
             }
+
+            # Open the CSV file
+            Start-Process -FilePath $global:textboxCSVFilePath.Text
 
             # Show summery dialogbox
             [System.Windows.Forms.MessageBox]::Show("Reset password completed.", "Password Reset", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
@@ -757,6 +759,11 @@ function HandleMoveOUCSV($exampleDistinguishedName) {
 
     # Export the modified data to the CSV file
     $csvData | Export-Csv -Path $csvPath -NoTypeInformation -Force
+
+    # Display summery in console
+    $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+    Write-Host "$($dateTime) | " -NoNewline 
+    Write-Host "Relocation process completed." -ForegroundColor Green
 
     # Open CSV file
     #Start-Process $csvPath

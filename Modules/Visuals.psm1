@@ -66,3 +66,130 @@ function HideAllMarks($form, $prefixes) {
         }
     }
 }
+
+# Function to create the tooltips over the buttons
+function CreateToolTip {
+    param (
+        [System.Windows.Forms.Control]$control,
+        [string]$text
+    )
+
+    # Define the tooltip
+    $tooltip = New-Object System.Windows.Forms.ToolTip
+    $tooltip.SetToolTip($control, $text)
+
+    # Define the timer
+    $timer = New-Object System.Windows.Forms.Timer
+    $timer.Interval = 2000  # 2000 milliseconds (2 seconds)
+
+    # Add mouse enter event handler to the buttons
+    $control.Add_MouseEnter({
+        if ($control.Text -match "Find User") {
+           $findUserTimer = New-Object System.Windows.Forms.Timer
+           $findUserTimer.Interval = 2000
+           $findUserTimer.Start()
+        }
+        elseif ($control.Text -match "Find Computer") {
+            $findComputerTimer = New-Object System.Windows.Forms.Timer
+            $findComputerTimer.Interval = 2000
+            $findComputerTimer.Start()
+        }
+        elseif ($control.Text -match "Browse") {
+            $browseTimer = New-Object System.Windows.Forms.Timer
+            $browseTimer.Interval = 2000
+            $browseTimer.Start()
+        }
+        elseif ($control.Text -match "Generate Password") {
+            $generatePasswordTimer = New-Object System.Windows.Forms.Timer
+            $generatePasswordTimer.Interval = 2000
+            $generatePasswordTimer.Start()
+        }
+        elseif ($control.Text -match "Reset Password") {
+            $resetPasswordTimer = New-Object System.Windows.Forms.Timer
+            $resetPasswordTimer.Interval = 2000
+            $resetPasswordTimer.Start()
+        }
+        elseif ($control.Text -match "Re-Enable") {
+            $reEnableTimer = New-Object System.Windows.Forms.Timer
+            $reEnableTimer.Interval = 2000
+            $reEnableTimer.Start()
+        }
+        elseif ($control.Text -match "Copy Groups") {
+            $copyGroupsTimer = New-Object System.Windows.Forms.Timer
+            $copyGroupsTimer.Interval = 2000
+            $copyGroupsTimer.Start()
+        }
+        elseif ($control.Text -match "Remove Groups") {
+            $removeGroupsTimer = New-Object System.Windows.Forms.Timer
+            $removeGroupsTimer.Interval = 2000
+            $removeGroupsTimer.Start()
+        }
+        elseif ($control.Text -match "Move OU") {
+            $moveOUTimer = New-Object System.Windows.Forms.Timer
+            $moveOUTimer.Interval = 2000
+            $moveOUTimer.Start()
+        }
+    })
+
+    # Add mouse leave event handler to the buttons
+    $control.Add_MouseLeave({
+        if ($control.Text -match "Find User") {
+            $findUserTimer = New-Object System.Windows.Forms.Timer
+            $findUserTimer.Interval = 2000
+            $findUserTimer.Stop()
+            $tooltip.Hide($control)
+         }
+         elseif ($control.Text -match "Find Computer") {
+            $findComputerTimer = New-Object System.Windows.Forms.Timer
+            $findComputerTimer.Interval = 2000
+            $findComputerTimer.Stop()
+            $tooltip.Hide($control)
+        }
+        elseif ($control.Text -match "Browse") {
+            $browseTimer = New-Object System.Windows.Forms.Timer
+            $browseTimer.Interval = 2000
+            $browseTimer.Stop()
+            $tooltip.Hide($control)
+        }
+        elseif ($control.Text -match "Generate Password") {
+            $generatePasswordTimer = New-Object System.Windows.Forms.Timer
+            $generatePasswordTimer.Interval = 2000
+            $generatePasswordTimer.Stop()
+            $tooltip.Hide($control)
+        }
+        elseif ($control.Text -match "Reset Password") {
+            $resetPasswordTimer = New-Object System.Windows.Forms.Timer
+            $resetPasswordTimer.Interval = 2000
+            $resetPasswordTimer.Stop()
+            $tooltip.Hide($control)
+        }
+        elseif ($control.Text -match "Re-Enable") {
+            $reEnableTimer = New-Object System.Windows.Forms.Timer
+            $reEnableTimer.Interval = 2000
+            $reEnableTimer.Stop()
+            $tooltip.Hide($control)
+        }
+        elseif ($control.Text -match "Copy Groups") {
+            $copyGroupsTimer = New-Object System.Windows.Forms.Timer
+            $copyGroupsTimer.Interval = 2000
+            $copyGroupsTimer.Stop()
+            $tooltip.Hide($control)
+        }
+        elseif ($control.Text -match "Remove Groups") {
+            $removeGroupsTimer = New-Object System.Windows.Forms.Timer
+            $removeGroupsTimer.Interval = 2000
+            $removeGroupsTimer.Stop()
+            $tooltip.Hide($control)
+        }
+        elseif ($control.Text -match "Move OU") {
+            $moveOUTimer = New-Object System.Windows.Forms.Timer
+            $moveOUTimer.Interval = 2000
+            $moveOUTimer.Stop()
+            $tooltip.Hide($control)
+        }
+    })
+
+    $timer.Add_Tick({
+        $timer.Stop()
+    })
+}
