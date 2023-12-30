@@ -28,7 +28,7 @@ Quick-AD is a PowerShell script designed to streamline common Active Directory (
 2. **Extract the ZIP File:**
    - Extract the downloaded ZIP file to a location of your choice.
 
-3. **Run PowerShell as Administrator:**
+3. **Run With PowerShell:**
    - Right-click on the `Quick-AD.ps1` file.
    - Select "Run with PowerShell". (Optional: choose "Run as Administrator" from the context menu).
 
@@ -73,6 +73,13 @@ Quick-AD is a PowerShell script designed to streamline common Active Directory (
 
 7. **OU Operations:**
    - Move users or computers to different OUs.
+
+## Security
+
+1. Locking mechanizem that prevents the use of a spesific operation such as handling CSV files by more than 1 operator at the same time.
+2. Dynamic response from the app's controllers to the user's actions to prevent abuse.
+3. Button management to prevent flooding of the same request.
+4. Timers are set on looped operations to prevent DOS.
 
 ## Notes
 
