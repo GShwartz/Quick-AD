@@ -1,4 +1,5 @@
 ﻿# 1. Finish statusbar updates
+# 2. Finish event handler with button management on CSV & Computer
 
 
 # Import form modules
@@ -133,16 +134,14 @@ $textboxADUsername.Add_MouseDown({
     $textboxADComputer.Text = ""
     $textboxCSVFilePath.Text = ""
 
-    if ([string]::IsNullOrEmpty($textboxADUsername.Text) -or $textboxADUsername.Text -eq "AD Username") {HideAllMarks $form $prefixes}
+    if ([string]::IsNullOrEmpty($textboxADUsername.Text)) {HideAllMarks $form $prefixes}
     else {
         HideMark $form $adComputerPictureName
         HideMark $form $csvPathPictureName
+        $buttonFindADUser.Enabled = $false
     }
 
-    if (-not $buttonFindADUser.Enabled) {$buttonFindADUser.Enabled = $false}
-    else {$buttonFindADUser.Enabled = $true}
-
-    $buttonFindComputer.Enabled = $false
+    if (-not [string]::IsNullOrEmpty($global:primaryUser) -and -not [string]::IsNullOrEmpty($textboxADUsername.Text)) {$buttonFindComputer.Enabled = $false}
 
     if (-not [string]::IsNullOrEmpty($global:primaryUser) -or -not [string]::IsNullOrEmpty($textboxCSVFilePath.Text)) {$buttonGeneratePassword.Enabled = $true}
     else {$buttonGeneratePassword.Enabled = $false}
@@ -156,7 +155,8 @@ $textboxADUsername.Add_MouseDown({
     }
     else {$buttonCopyGroups.Enabled = $false}
 
-    $buttonRemoveGroups.Enabled = $false
+    if (-not $buttonRemoveGroups.Enabled) {$buttonRemoveGroups.Enabled = $false}
+    else {$buttonRemoveGroups.Enabled = $true}
 
     if (-not $buttonReEnable.Enabled) {$buttonReEnable.Enabled = $false}
     else {$buttonReEnable.Enabled = $true}
@@ -206,14 +206,14 @@ $textboxADUsername.add_TextChanged({
     
     # Disable controller's action buttons
     $buttonGeneratePassword.Enabled = $false
-    $buttonCopyGroups.Enabled = $false
-    $buttonReEnable.Enabled = $false
     $buttonResetPassword.Enabled = $false
+    $buttonReEnable.Enabled = $false
+    $buttonCopyGroups.Enabled = $false
+    $buttonRemoveGroups.Enabled = $false
     $buttonMoveOU.Enabled = $false
     
     # Hide result mark
     HideMark $form $adUserNamePictureName
-    
 })
 
 $textboxADComputer.add_TextChanged({
