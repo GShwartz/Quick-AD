@@ -1,4 +1,4 @@
-﻿# 1. Add statusbar updates
+﻿# 1. Finish statusbar updates
 
 
 # Import form modules
@@ -84,6 +84,8 @@ $prefixes = @($adUserNamePictureName, $adComputerPictureName, $csvPathPictureNam
 # Create the main form
 $global:form = CreateCanvas "QUICK-AD" -x 470 -y 380
 $form.MaximizeBox = $false
+$form.Margin = '0,0,0,0'
+$form.Padding = '0,0,0,0'
 
 # Create a top menu strip
 $global:menuStrip = CreateMenuStrip
@@ -109,6 +111,12 @@ $global:buttonCopyGroups = CreateButton -text "Copy Groups" -x 310 -y 160 -width
 $global:buttonRemoveGroups = CreateButton -text "Remove Groups" -x 310 -y 200 -width 120 -height 25 -enabled $false
 $global:buttonMoveOU = CreateButton -text "Move OU" -x 310 -y 240 -width 120 -height 25 -enabled $false
 
+# Call the function to create the status bar
+CreateStatusBar
+
+# Update statusbar message
+UpdateStatusBar "Ready" -color 'Green'
+
 # Create tooltips
 CreateToolTip -control $buttonFindADUser -text "Search for an Active Directory User account"
 CreateToolTip -control $buttonFindComputer -text "Search for an Active Directory Computer account"
@@ -125,20 +133,33 @@ $textboxADUsername.Add_MouseDown({
     $textboxADComputer.Text = ""
     $textboxCSVFilePath.Text = ""
 
-    if ([string]::IsNullOrEmpty($textboxADUsername.Text)) {
-        HideAllMarks $form $prefixes
-    }
+    if ([string]::IsNullOrEmpty($textboxADUsername.Text) -or $textboxADUsername.Text -eq "AD Username") {HideAllMarks $form $prefixes}
     else {
         HideMark $form $adComputerPictureName
         HideMark $form $csvPathPictureName
     }
 
-    $buttonFindADUser.Enabled = $false
+    if (-not $buttonFindADUser.Enabled) {$buttonFindADUser.Enabled = $false}
+    else {$buttonFindADUser.Enabled = $true}
+
     $buttonFindComputer.Enabled = $false
-    $buttonGeneratePassword.Enabled = $false
-    $buttonCopyGroups.Enabled = $false
+
+    if (-not [string]::IsNullOrEmpty($global:primaryUser) -or -not [string]::IsNullOrEmpty($textboxCSVFilePath.Text)) {$buttonGeneratePassword.Enabled = $true}
+    else {$buttonGeneratePassword.Enabled = $false}
+
+    if (-not [string]::IsNullOrEmpty($global:primaryUser)) {
+        if ($buttonCopyGroups.Enabled) {$buttonCopyGroups.Enabled = $true}
+        else {$buttonCopyGroups.Enabled = $false}
+
+        if ($buttonRemoveGroups.Enabled) {$buttonRemoveGroups.Enabled = $true}
+        else {$buttonRemoveGroups.Enabled = $false}
+    }
+    else {$buttonCopyGroups.Enabled = $false}
+
     $buttonRemoveGroups.Enabled = $false
-    $buttonReEnable.Enabled = $false
+
+    if (-not $buttonReEnable.Enabled) {$buttonReEnable.Enabled = $false}
+    else {$buttonReEnable.Enabled = $true}
 })
 
 $textboxADComputer.Add_MouseDown({
@@ -149,11 +170,21 @@ $textboxADComputer.Add_MouseDown({
     $textboxCSVFilePath.Text = ""
 
     $buttonFindADUser.Enabled = $false
-    $buttonFindComputer.Enabled = $false
+    if (-not $buttonFindComputer.Enabled) {
+        $buttonFindComputer.Enabled = $false
+    }
+    else {
+        $buttonFindComputer.Enabled = $true
+    }
     $buttonGeneratePassword.Enabled = $false
     $buttonCopyGroups.Enabled = $false
     $buttonRemoveGroups.Enabled = $false
-    $buttonReEnable.Enabled = $false
+    if (-not $buttonReEnable.Enabled) {
+        $buttonReEnable.Enabled = $false
+    }
+    else {
+        $buttonReEnable.Enabled = $true
+    }
 })
 
 $textboxADUsername.add_TextChanged({
@@ -545,6 +576,7 @@ $form.Controls.Add($buttonReEnable)
 $form.Controls.Add($buttonCopyGroups)
 $form.Controls.Add($buttonRemoveGroups)
 $form.Controls.Add($buttonMoveOU)
+$form.Controls.Add($statusBar)
 
 $form.Add_FormClosing({
     ManageFormClose
@@ -552,3 +584,4 @@ $form.Add_FormClosing({
 
 # Show the form
 [Windows.Forms.Application]::Run($form)
+
