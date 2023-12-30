@@ -145,14 +145,22 @@ Function HandleLockedOut {
     # Log action
     LogScriptExecution -logPath $logFilePath -action "$($global:primaryUser.SamAccountName) is locked-out." -userName $env:USERNAME
 
+    # Update statusbar message
+    UpdateStatusBar "Account '$($global:primaryUser.SamAccountName)' is locked-out." -color 'DarkOrange'
+
     # Display Unlock dialog box
     $unlockAccountResult = [System.Windows.Forms.MessageBox]::Show("User '$($global:primaryUser.SamAccountName)' is locked. Do you want to unlock the account?", "User Locked", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question)
     if ($unlockAccountResult -eq [System.Windows.Forms.DialogResult]::Yes) {
+        # Perform unlocking process
+        Unlock-ADAccount -Identity $global:primaryUser.SamAccountName
+
         # Log action
         LogScriptExecution -logPath $logFilePath -action "$($global:primaryUser.SamAccountName) was unlocked." -userName $env:USERNAME
 
+        # Update statusbar message
+        UpdateStatusBar "Account '$($global:primaryUser.SamAccountName)' has been unlocked." -color 'Green'
+
         # Unlock the user account
-        Unlock-ADAccount -Identity $global:primaryUser.SamAccountName
         [System.Windows.Forms.MessageBox]::Show("User '$($global:primaryUser.SamAccountName)' has been unlocked.", "Account Unlocked", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
         
         # Show a green V checkmark near the textbox
@@ -162,6 +170,7 @@ Function HandleLockedOut {
     # Update buttons
     $global:buttonGeneratePassword.Enabled = $true
     $global:buttonCopyGroups.Enabled = $true
+    $global:buttonRemoveGroups.Enabled = $true
     $global:buttonMoveOU.Enabled = $true
 }
 
@@ -207,16 +216,17 @@ function CopyGroups {
     if ($userGroups.Count -eq 0) {
         Write-Host "$($dateTime) | " -NoNewline
         Write-Host "No Groups." -ForegroundColor Yellow
+
+        # Update statusbar message
+        UpdateStatusBar "User '$($global:primaryUser.SamAccountName)' is not a member of any group." -color 'DarkOrange'
         return $false
     }
     
     # Add the user to the groups of the specified $adUsername
     foreach ($group in $userGroups) {
         try {
+            # Perform AD group Add action
             Add-ADGroupMember -Identity $group -Members $global:primaryUser.SamAccountName -ErrorAction Continue
-
-            # Set a timer to avoid request flooding | DOS
-            Start-Sleep -Milliseconds 300
 
             $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
             Write-Host "$($dateTime) | " -NoNewLine 
@@ -227,6 +237,9 @@ function CopyGroups {
 
             # Log action
             LogScriptExecution -logPath $global:logFilePath -action "$($global:primaryUser.SamAccountName) joined $($group)." -userName $env:USERNAME
+
+            # Set a timer to avoid request flooding | DOS
+            Start-Sleep -Milliseconds 300
         } 
 
         catch [Microsoft.ActiveDirectory.Management.ADException] {
@@ -238,6 +251,9 @@ function CopyGroups {
             } else {
                 # Log action
                 LogScriptExecution -logPath $global:logFilePath -action "$($_.Exception.Message)" -userName $env:USERNAME
+
+                # Update statusbar message
+                UpdateStatusBar "An error occured. Check the log." -color 'Red'
 
                 # Handle other errors (if needed).
                 Write-Error "An error occurred: $($_.Exception.Message)"
@@ -264,6 +280,11 @@ function CopyGroups {
         Write-Host " *** $group" -ForegroundColor Cyan
     }
     Write-Host ""
+
+    # Update statusbar message
+    UpdateStatusBar "Copy Groups completed for user: '$($global:primaryUser.SamAccountName)'." -color 'Green'
+
+    $global:buttonFindADUser.Enabled = $true
 }
 
 # Function to remove groups from user
@@ -278,6 +299,10 @@ function RemoveGroups($username) {
             Write-Host "User " -NoNewline -ForegroundColor Yellow
             Write-Host "'$($username)' " -NoNewline
             Write-Host "is not a member of any group." -ForegroundColor Yellow
+
+            # Update statusbar message
+            UpdateStatusBar "The user account '$($username)' is not a member of any group." -color 'Red'
+
             return $null
         }
 
@@ -309,6 +334,9 @@ function RemoveGroups($username) {
                 Write-Host "'$($group)'."
                 Write-Host "$_" -ForegroundColor Red
                 
+                # Update statusbar message
+                UpdateStatusBar "Error removing user '$($username) from group $($group). Check Log." -color 'Red'
+
                 # Log action
                 LogScriptExecution -logPath $logFilePath -action "Error removing user $username from group $group. $_." -userName $env:USERNAME
 
@@ -316,6 +344,8 @@ function RemoveGroups($username) {
                 continue
             }
         }
+        # Update statusbar message
+        UpdateStatusBar "User '$($username)' has been removed from all groups." -color 'Green'
         return $true
 
     } catch {
@@ -325,6 +355,9 @@ function RemoveGroups($username) {
         Write-Host "'$($username)'."
         Write-Host "$_" 
         
+        # Update statusbar message
+        UpdateStatusBar "Error retrieving groups for user '$($username). Check Log." -color 'Red'
+
         # Log action
         LogScriptExecution -logPath $logFilePath -action "Error retrieving groups for user $username. $_" -userName $env:USERNAME
 
@@ -353,8 +386,11 @@ function MoveUserToOU {
     } catch {
         Write-Host "$($dateTime) | An error occurred: $_"
 
+        # Update statusbar message
+        UpdateStatusBar "An Error occurred. Check the log file." -color 'Red'
+
         # Log the start of script execution
-        LogScriptExecution -logPath $logFilePath -action "$($_)" -userName $env:USERNAME
+        LogScriptExecution -logPath $global:logFilePath -action "$($_)" -userName $env:USERNAME
 
         return $_
     }
@@ -393,7 +429,7 @@ function ManageFindADUserEvent {
             # Check if the user is Disabled
             if (-not $global:primaryUser.Enabled) {
                 # Log action
-                LogScriptExecution -logPath $global:logFilePath -action "User '$($global:primaryUser.SamAccountName)' is disabled.", "User Disabled" -userName $env:USERNAME
+                LogScriptExecution -logPath $global:logFilePath -action "User '$($global:primaryUser.SamAccountName)' is disabled." -userName $env:USERNAME
 
                 # Update buttons
                 $global:buttonFindADUser.Enabled = $false
@@ -403,13 +439,16 @@ function ManageFindADUserEvent {
                 HideMark $form "ADUsername"
                 HideMark $form "ADComputer"
                 HideMark $form "CSVPath"
-                DrawXmark $Form 130 46 "ADUsername"
+                DrawXmark $Form 130 50 "ADUsername"
 
                 $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
                 Write-Host "$($dateTime) | " -NoNewline
                 Write-Host "User " -NoNewline -ForegroundColor Red
                 Write-Host "'$($global:primaryUser.SamAccountName)' " -NoNewline
                 Write-Host "is disabled." -ForegroundColor Red
+
+                # Update statusbar message
+                UpdateStatusBar "User account '$($global:textboxADUsername.Text)' is Disabled." -color 'Red'
 
                 # Show the User is disabled dialog box
                 [System.Windows.Forms.MessageBox]::Show("User '$($global:primaryUser.SamAccountName)' is disabled.", "User Disabled", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
@@ -426,6 +465,9 @@ function ManageFindADUserEvent {
                 # Show a green V checkmark near the textbox
                 HideMark $form "ADUsername"
                 DrawVmark $form 125 47 "ADUsername"
+
+                # Update statusbar message
+                UpdateStatusBar "User account '$($global:textboxADUsername.Text)' is OK." -color 'Green'
     
                 # Manage buttons
                 $global:buttonGeneratePassword.Enabled = $true
@@ -444,6 +486,12 @@ function ManageFindADUserEvent {
             HideMark $form "ADUsername"
             DrawXmark $form 130 46 "ADUsername"
 
+            # Log action
+            LogScriptExecution -logPath $global:logFilePath -action "User '$($global:primaryUser.SamAccountName)' not found." -userName $env:USERNAME
+
+            # Update statusbar message
+            UpdateStatusBar "User account '$($global:textboxADUsername.Text)' was not found." -color 'Red'
+
             # Display dialog box
             [System.Windows.Forms.MessageBox]::Show("'$($adUsername)' not found.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
 
@@ -457,6 +505,9 @@ function ManageFindADUserEvent {
         # Display dialog box
         [System.Windows.Forms.MessageBox]::Show("Please enter an AD username.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         
+        # Update statusbar message
+        UpdateStatusBar "Textbox is Empty." -color 'Red'
+
         # Draw red X mark near the username textbox
         HideMark $form "ADUsername"
         DrawXmark $form 130 44 "ADUsername"
@@ -493,6 +544,9 @@ function ManageFindComputerEvent {
             Write-Host "'$($global:textboxADComputer.Text)' " -NoNewline
             Write-Host "is disabled." -ForegroundColor Red
 
+            # Update statusbar message
+            UpdateStatusBar "Computer account: '$($global:textboxADComputer.Text)' is Disabled." -color 'Red'
+
             # Show the User is disabled dialog box
             [System.Windows.Forms.MessageBox]::Show("Computer '$($global:primaryComputer.Name)' is disabled", "Computer Disabled", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
 
@@ -511,8 +565,10 @@ function ManageFindComputerEvent {
         # Set focus on the Find and Generate button
         $global:buttonMoveOU.Focus()
 
-        return $true
+        # Update statusbar message
+        UpdateStatusBar "Computer account '$($global:textboxADComputer.Text)' is OK." -color 'Green'
 
+        return $true
     }
     else {
         # Draw X
@@ -530,12 +586,15 @@ function ManageFindComputerEvent {
         Write-Host "'$($global:textboxADComputer.Text)' " -NoNewline
         Write-Host "not found." -ForegroundColor Red
 
+        # Update statusbar message
+        UpdateStatusBar "Computer account: '$($global:textboxADComputer.Text)' was not found." -color 'Red'
+
         # Disable buttons
         $global:buttonRemoveGroups.Enabled = $false
         $global:buttonMoveOU.Enabled = $false
 
         # Show the User is disabled dialog box
-        [System.Windows.Forms.MessageBox]::Show("Computer '$($global:textboxADComputer.Text)' not found", "Computer Not Found", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        [System.Windows.Forms.MessageBox]::Show("Computer '$($global:textboxADComputer.Text)' was not found", "Computer Not Found", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         
         # Focus of AD Computer textbox
         $global:textboxADComputer.Focus()

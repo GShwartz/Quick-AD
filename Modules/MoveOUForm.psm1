@@ -1,15 +1,28 @@
 # Import local modules
 $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-$csvHandlerModulePath = Join-Path $scriptDirectory "CsvHandler.psm1"
-$loggerModulePath = Join-Path $scriptDirectory "Logger.psm1"
-$adHandlerModulePath = Join-Path $scriptDirectory "ADHandler.psm1"
-$buildFormModulePath = Join-Path $scriptDirectory "BuildForm.psm1"
+# $csvHandlerModulePath = Join-Path $scriptDirectory "CsvHandler.psm1"
+# $loggerModulePath = Join-Path $scriptDirectory "Logger.psm1"
+# $adHandlerModulePath = Join-Path $scriptDirectory "ADHandler.psm1"
+# $buildFormModulePath = Join-Path $scriptDirectory "BuildForm.psm1"
 
-Import-Module $csvHandlerModulePath -Force
-Import-Module $loggerModulePath -Force
-Import-Module $adHandlerModulePath -Force
-Import-Module $buildFormModulePath -Force
+# Import-Module $csvHandlerModulePath -Force
+# Import-Module $loggerModulePath -Force
+# Import-Module $adHandlerModulePath -Force
+# Import-Module $buildFormModulePath -Force
+
+# Import local modules
+$modulePaths = @(
+    "Logger",           # Handles logging
+    "CsvHandler",       # Handles CSV file operations
+    "ADHandler",        # Handles Active Directory operations
+    "BuildForm"        # Builds and configures forms
+)
+
+foreach ($moduleName in $modulePaths) {
+    $modulePath = Join-Path $scriptDirectory "$moduleName.psm1"
+    Import-Module $modulePath -Force
+}
 
 # Function to handle the AD User OU move
 function HandleUser {
@@ -20,6 +33,9 @@ function HandleUser {
     $buttonCancelMoveOU.Enabled = $false
 
     if ($global:primaryUser.SamAccountName -eq $exampleADuser) {
+        # Update statusbar message
+        UpdateStatusBar "'$($exampleADuser) is the same as the primary." -color 'Red'
+
         # Display Error dialog
         [System.Windows.Forms.MessageBox]::Show("'$($exampleADuser) is the same as the primary.", "Duplicated Entry", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         
@@ -46,6 +62,9 @@ function HandleUser {
                 # Log the start of script execution
                 LogScriptExecution -logPath $logFilePath -action "'$($global:textboxADUsername.Text)' has been relocated to $($userCheckup.DistinguishedName)." -userName $env:USERNAME
 
+                # Update statusbar message
+                UpdateStatusBar "'$($global:textboxADUsername.Text)' has been relocated to $($userCheckup.DistinguishedName)." -color 'Green'
+
                 # Close the Copy Groups form
                 $moveOUForm.Close()
 
@@ -62,7 +81,10 @@ function HandleUser {
             else {
                 # Log the start of script execution
                 LogScriptExecution -logPath $logFilePath -action "The user '$($exampleADuser) was not found." -userName $env:USERNAME
-        
+                
+                # Update statusbar message
+                UpdateStatusBar "The user '$($exampleADuser) was not found." -color 'Red'
+
                 # Display Not-Found dialog
                 [System.Windows.Forms.MessageBox]::Show("The user '$($exampleADuser) was not found.", "MoveOU: User Not Found", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         
@@ -88,6 +110,9 @@ function HandleComputer {
     $buttonCancelMoveOU.Enabled = $false
 
     if ($global:textboxADComputer.Text -eq $exampleADComputer) {
+        # Update statusbar message
+        UpdateStatusBar "'$($exampleADComputer) is the same as the primary." -color 'Red'
+
         # Display Not-Found dialog
         [System.Windows.Forms.MessageBox]::Show("'$($exampleADComputer) is the same as the primary.", "Duplicated Entry", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         
@@ -107,13 +132,10 @@ function HandleComputer {
                 
                 # Disable the main Move OU button
                 $buttonMoveOU.Enabled = $false
-                
+
                 # Log Action
                 LogScriptExecution -logPath $logFilePath -action "'$($global:primaryComputer.Name)' has been relocated to $($computer.DistinguishedName)." -userName $env:USERNAME
-
-                # Close the Copy Groups form
-                $moveOUForm.Close()
-
+                
                 $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
                 Write-Host "$($dateTime) | " -NoNewline 
                 Write-Host "Computer '" -NoNewline -ForegroundColor Green
@@ -121,11 +143,20 @@ function HandleComputer {
                 Write-Host "was reloacted to " -NoNewline -ForegroundColor Green
                 Write-Host "$($computer.DistinguishedName)"
 
+                # Update statusbar message
+                UpdateStatusBar "'$($global:primaryComputer.Name)' relocated successfully." -color 'Green'
+
                 # Show Summary dialog box
                 [System.Windows.Forms.MessageBox]::Show("'$($global:primaryComputer.Name)' relocated successfully.", "Move OU", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-            
+                
+                # Close the Copy Groups form
+                $moveOUForm.Close()
+
             }
             else {
+                # Update statusbar message
+                UpdateStatusBar "'$($exampleADComputer) not found." -color 'Red'
+
                 # Display Not-Found dialog
                 [System.Windows.Forms.MessageBox]::Show("'$($exampleADComputer) not found.", "Computer not found", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
                 
@@ -253,13 +284,19 @@ function ShowMoveOUForm {
                                         Write-Host "'$($oldPrimary.SamAccountName)' " -NoNewline 
                                         Write-Host "was reloacted to " -NoNewline -ForegroundColor Green
                                         Write-Host "$($selectedItem)"
+
+                                        # Update statusbar message
+                                        UpdateStatusBar "User '$($oldPrimary.SamAccountName)' was relocated to $($selectedItem)" -color 'Green'
                                     }
                                 }
 
                                 $formList.Close()
                                 $moveOUForm.Close()
+                                $global:buttonMoveOU.Focus()
 
                             } else {
+                                # Update statusbar message
+                                UpdateStatusBar "No item selected." -color 'Yellow'
                                 Write-Host "No item selected." -ForegroundColor Yellow
                             }
                         })
@@ -282,6 +319,9 @@ function ShowMoveOUForm {
                         Write-Host "The OU " -NoNewline -ForegroundColor Red
                         Write-Host "'$($ouName)' " -NoNewline
                         Write-Host "was not found." -ForegroundColor Red
+
+                        # Update statusbar message
+                        UpdateStatusBar "OU '$($ouName)' was not found." -color 'Red'
 
                         # Log action
                         LogScriptExecution -logPath $logFilePath -action "OU '$($ouName)' not found." -userName $env:USERNAME
@@ -334,6 +374,9 @@ function ShowMoveOUForm {
                                         Write-Host "'$($currentPrimary.Name)' " -NoNewline 
                                         Write-Host "was reloacted to " -NoNewline -ForegroundColor Green
                                         Write-Host "$($selectedItem)"
+                                        
+                                        # Update statusbar message
+                                        UpdateStatusBar "Computer '$($global:primaryComputer.Name)' was relocated to $($selectedItem)." -color 'Green'
 
                                         # Log action
                                         LogScriptExecution -logPath $logFilePath -action "Computer '$($global:primaryComputer.Name)' was relocated to $($selectedItem)" -userName $env:USERNAME
@@ -344,6 +387,11 @@ function ShowMoveOUForm {
                                 $moveOUForm.Close()
 
                             } else {
+                                # Update statusbar message
+                                UpdateStatusBar "No item selected." -color 'DarkOrange'
+
+                                $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                                Write-Host "$($dateTime) | " -NoNewline
                                 Write-Host "No item selected." -ForegroundColor Yellow
                             }
                         })
@@ -367,6 +415,9 @@ function ShowMoveOUForm {
                         Write-Host "'$($ouName)' " -NoNewline
                         Write-Host "was not found." -ForegroundColor Red
 
+                        # Update statusbar message
+                        UpdateStatusBar "OU '$($ouName)' not found." -color 'Red'
+
                         # Log the start of script execution
                         LogScriptExecution -logPath $logFilePath -action "OU '$($ouName)' not found." -userName $env:USERNAME
 
@@ -383,7 +434,10 @@ function ShowMoveOUForm {
             
         } catch {
             # Log the start of script execution
-            LogScriptExecution -logPath $global:logFilePath -action "Error: $($_.Exception.Message)" -userName $env:USERNAME
+            LogScriptExecution -logPath $global:logFilePath -action "Error: $($_)" -userName $env:USERNAME
+
+            # Update statusbar message
+            UpdateStatusBar "An error occured. Check log." -color 'Red'
 
             # Disable the Copy Groups button and close the form
             $buttonMove.Enabled = $false
@@ -490,6 +544,9 @@ function ShowCSVMoveUserOUForm {
                     $buttonMove.Enabled = $false
                     $buttonCancelMoveOU.Enabled = $true
 
+                    # Update statusbar message
+                    UpdateStatusBar "Example user '$($example)' not found." -color 'Red'
+
                     # Display Error dialog
                     [System.Windows.Forms.MessageBox]::Show("Example user '$($example)' not found.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
 
@@ -580,6 +637,9 @@ function ShowCSVMoveComputerOUForm {
                     Write-Host "Example user " -NoNewline -ForegroundColor Red
                     Write-Host "'$($example)' " -NoNewline -ForegroundColor White
                     Write-Host "not found." -ForegroundColor Red
+
+                    # Update statusbar message
+                    UpdateStatusBar "Example computer '$($example)' not found." -color 'Red'
 
                     # Disable the move button
                     $buttonMove.Enabled = $false

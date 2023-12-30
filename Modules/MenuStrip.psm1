@@ -2,25 +2,20 @@
 function ShowAboutWindow {
     $aboutForm = New-Object System.Windows.Forms.Form
     $aboutForm.Text = "QuicK-AD"
-    $aboutForm.Width = 350
-    $aboutForm.Height = 240
+    $aboutForm.Width = 300
+    $aboutForm.Height = 200
     $aboutForm.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
     $aboutForm.MaximizeBox = $false
     $aboutForm.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
 
-    $labelScripter = New-Object System.Windows.Forms.Label
-    $labelScripter.Text = "Written by: Gil Shwartz"
-    $labelScripter.Location = New-Object System.Drawing.Point(10, 10)
-    $labelScripter.AutoSize = $true
-
     $labelVersion = New-Object System.Windows.Forms.Label
     $labelVersion.Text = "Version: $($global:version)"
-    $labelVersion.Location = New-Object System.Drawing.Point(10, 40)
+    $labelVersion.Location = New-Object System.Drawing.Point(10, 20)
     $labelVersion.AutoSize = $true
 
     $linkGitHub = New-Object System.Windows.Forms.LinkLabel
     $linkGitHub.Text = "GitHub"
-    $linkGitHub.Location = New-Object System.Drawing.Point(10, 70)
+    $linkGitHub.Location = New-Object System.Drawing.Point(10, 50)
     $linkGitHub.AutoSize = $true
     $linkGitHub.Add_LinkClicked({
         [System.Diagnostics.Process]::Start("https://github.com/GShwartz/Quick-AD/tree/main")
@@ -28,13 +23,13 @@ function ShowAboutWindow {
 
     $labelCopyright = New-Object System.Windows.Forms.Label
     $labelCopyright.Text = "© 2024 Gil Shwartz"
-    $labelCopyright.Location = New-Object System.Drawing.Point(10, 100)
+    $labelCopyright.Location = New-Object System.Drawing.Point(10, 80)
     $labelCopyright.AutoSize = $true
 
     $buttonOK = New-Object System.Windows.Forms.Button
     $buttonOK.Text = "OK"
     $buttonOK.DialogResult = [System.Windows.Forms.DialogResult]::OK
-    $buttonOK.Location = New-Object System.Drawing.Point(100, 140)
+    $buttonOK.Location = New-Object System.Drawing.Point(100, 120)
 
     # Add controls to the form
     $aboutForm.Controls.Add($labelVersion)

@@ -193,3 +193,11 @@ function CreateToolTip {
         $timer.Stop()
     })
 }
+
+# Function to update the status bar text
+function UpdateStatusBar($message, $color) {
+    $global:statusBarTextBox.Text = $message
+    $global:statusBarTextBox.ForeColor = $color
+}
+
+

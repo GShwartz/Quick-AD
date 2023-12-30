@@ -124,3 +124,28 @@ function CreateNumbersDropdown {
 
     return $dropdown
 }
+
+# Function to create a status bar
+function CreateStatusBar {
+    # Create a status bar
+    $global:statusBar = New-Object System.Windows.Forms.StatusBar
+    $statusBar.Dock = [System.Windows.Forms.DockStyle]::Bottom
+
+    # Create a textbox for status bar
+    $global:statusBarTextBox = New-Object System.Windows.Forms.TextBox
+    $statusBarTextBox.Multiline = $false
+    $statusBarTextBox.Anchor = [System.Windows.Forms.AnchorStyles]::Bottom -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right
+    $statusBarTextBox.Text = "Ready"
+    $statusBarTextBox.ForeColor = [System.Drawing.Color]::Black
+    $statusBarTextBox.BackColor = [System.Drawing.Color]::Black
+    $statusBarTextBox.BorderStyle = [System.Windows.Forms.BorderStyle]::FixedSingle
+    $statusBarTextBox.ScrollBars = [System.Windows.Forms.ScrollBars]::Horizontal
+    $statusBarTextBox.ReadOnly = $true
+
+    # Add the textbox to the form
+    $form.Controls.Add($statusBarTextBox)
+    $statusBar.Panels.Add((New-Object System.Windows.Forms.StatusBarPanel))
+    $statusBar.Controls.Add($statusBarTextBox)
+}
+
+
