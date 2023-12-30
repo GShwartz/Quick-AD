@@ -3,52 +3,22 @@ $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 $csvHandlerModulePath = Join-Path $scriptDirectory "CsvHandler.psm1"
 $loggerModulePath = Join-Path $scriptDirectory "Logger.psm1"
+$buildFormModulePath = Join-Path $scriptDirectory "BuildForm.psm1"
 
 Import-Module $csvHandlerModulePath -Force
 Import-Module $loggerModulePath -Force
-
-# Get the current username
-$currentUserName = $env:USERNAME
+Import-Module $buildFormModulePath -Force
 
 # Function to display the Copy Groups form
 function ShowCopyGroupsForm {
-    param (
-        [string]$adUsername,
-        [string]$logFilePath,
-        [System.Windows.Forms.Button]$buttonFindADUser,
-        [System.Windows.Forms.Button]$buttonResetPassword,
-        [System.Windows.Forms.Button]$buttonReEnable,
-        [System.Windows.Forms.Button]$buttonGeneratePassword,
-        [System.Windows.Forms.Button]$buttonCopyGroups,
-        [System.Windows.Forms.Button]$buttonMoveOU
-    )
-
-    # Create a new form for copying groups
-    $copyGroupsForm = New-Object System.Windows.Forms.Form
-    $copyGroupsForm.Text = "Copy Groups"
-    $copyGroupsForm.Size = New-Object System.Drawing.Size(280, 140)
+    # Create the Copy Groups form components
+    $copyGroupsForm = CreateCanvas "Copy Groups" -x 280 -y 140
     $copyGroupsForm.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
-
-    # Create a label for entering the AD username
-    $labelUsername = New-Object System.Windows.Forms.Label
-    $labelUsername.Location = New-Object System.Drawing.Point(10, 10)
-    $labelUsername.Size = New-Object System.Drawing.Size(200, 20)
-    $labelUsername.Text = "Example AD username"
-    $copyGroupsForm.Controls.Add($labelUsername)
-
-    # Create a textbox for AD username input
-    $textboxUsername = New-Object System.Windows.Forms.TextBox
-    $textboxUsername.Location = New-Object System.Drawing.Point(10, 30)
-    $textboxUsername.Size = New-Object System.Drawing.Size(200, 20)
-    $textboxUsername.Text = ""
-    $copyGroupsForm.Controls.Add($textboxUsername)
-
-    # Create a 'Copy Groups' button
-    $buttonCopy = New-Object System.Windows.Forms.Button
-    $buttonCopy.Location = New-Object System.Drawing.Point(10, 60)
-    $buttonCopy.Size = New-Object System.Drawing.Size(90, 25)
-    $buttonCopy.Text = "Copy"
-    $buttonCopy.Enabled = $false
+    $labelUsername = CreateLabel -text "Example AD Username" -x 10 -y 10 -width 200 -height 20
+    $textboxUsername = CreateTextbox -x 10 -y 30 -width 200 -height 20 -readOnly $false
+    $buttonCopy = CreateButton -text "Copy" -x 10 -y 60 -width 90 -height 25 -enabled $false
+    
+    # Functionality for button click
     $buttonCopy.Add_Click({
         # Disable the Copy Groups & Cancel buttons while working
         $buttonCopy.Enabled = $false
@@ -59,7 +29,9 @@ function ShowCopyGroupsForm {
             $exampleADuser = $textboxUsername.Text
             if ($exampleADuser -eq $global:primaryUser.SamAccountName) {
                 # Log action
-                LogScriptExecution -logPath $logFilePath -action "The user '$($exampleADuser) is the same as the primary." -userName $currentUserName
+                LogScriptExecution -logPath $global:logFilePath -action "The user '$($exampleADuser) is the same as the primary." -userName $env:USERNAME
+
+                Write-Host "The user '$($exampleADuser) is the same as the primary. terminating." -ForegroundColor Red
 
                 # Display Not-Found dialog
                 [System.Windows.Forms.MessageBox]::Show("The user '$($exampleADuser) is the same as the primary.", "Duplicated Entry", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
@@ -87,12 +59,12 @@ function ShowCopyGroupsForm {
                 CopyGroups -adUsername $global:primaryUser.SamAccountName -exampleADuser $exampleADuser
                 
                 # Enable buttons
-                $buttonFindADUser.Enabled = $false
-                $buttonGeneratePassword.Enabled = $true
-                $buttonCopyGroups.Enabled = $true
+                $global:buttonFindADUser.Enabled = $false
+                $global:buttonGeneratePassword.Enabled = $true
+                $global:buttonCopyGroups.Enabled = $true
                 
                 # Log the start of script execution
-                LogScriptExecution -logPath $logFilePath -action "Groups have been copied from '$exampleADuser' to '$($global:primaryUser.SamAccountName)'." -userName $currentUserName
+                LogScriptExecution -logPath $global:logFilePath -action "Groups have been copied from '$exampleADuser' to '$($global:primaryUser.SamAccountName)'." -userName $env:USERNAME
 
                 # Show Summary dialog box
                 [System.Windows.Forms.MessageBox]::Show("Groups have been copied to '$($global:primaryUser.SamAccountName)'.", "Copy Groups", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
@@ -102,10 +74,10 @@ function ShowCopyGroupsForm {
 
             } else {
                 # Log action
-                LogScriptExecution -logPath $logFilePath -action "The user '$($exampleADuser) was not found." -userName $currentUserName
+                LogScriptExecution -logPath $global:logFilePath -action "The user '$($exampleADuser) was not found." -userName $env:USERNAME
 
                 # Display Not-Found dialog
-                [System.Windows.Forms.MessageBox]::Show("The user '$($exampleADuser) was not found.", "Copy Groups: User Not Found", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                [System.Windows.Forms.MessageBox]::Show("The user '$($exampleADuser) was not found.", "User Not Found", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
 
                 # Disable the Copy Groups button and enable the Cancel button
                 $buttonCopy.Enabled = $false
@@ -114,7 +86,7 @@ function ShowCopyGroupsForm {
 
         } catch {
             # Log action
-            LogScriptExecution -logPath $logFilePath -action "Error: $($_.Exception.Message)" -userName $currentUserName
+            LogScriptExecution -logPath $global:logFilePath -action "Error: $($_.Exception.Message)" -userName $env:USERNAME
 
             # Disable the Copy Groups button and close the form
             $buttonCopy.Enabled = $false
@@ -134,23 +106,20 @@ function ShowCopyGroupsForm {
         }
     })
 
-    # Add the Copy Groups button to the form
-    $copyGroupsForm.Controls.Add($buttonCopy)
-
     # Create a 'Cancel' button
-    $buttonCancelCopy = New-Object System.Windows.Forms.Button
-    $buttonCancelCopy.Location = New-Object System.Drawing.Point(140, 60)
-    $buttonCancelCopy.Size = New-Object System.Drawing.Size(70, 25)
-    $buttonCancelCopy.Text = "Cancel"
+    $buttonCancelCopy = CreateButton -text "Cancel" -x 140 -y 60 -width 70 -height 25 -enabled $true
     $buttonCancelCopy.Add_Click({
         # Log the start of script execution
-        LogScriptExecution -logPath $logFilePath -action "Copy Groups canceled." -userName $currentUserName
+        LogScriptExecution -logPath $global:logFilePath -action "Copy Groups canceled." -userName $env:USERNAME
 
         $copyGroupsForm.Close()
-        $buttonFindADUser.Focus()
+        $global:buttonFindADUser.Focus()
     })
 
     # Add the Cancel button
+    $copyGroupsForm.Controls.Add($labelUsername)
+    $copyGroupsForm.Controls.Add($textboxUsername)
+    $copyGroupsForm.Controls.Add($buttonCopy)
     $copyGroupsForm.Controls.Add($buttonCancelCopy)
 
     # Show the Copy Groups form

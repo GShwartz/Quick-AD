@@ -92,34 +92,82 @@ function ResetPassword {
     }
 }
 
+# Function to process the Reset Password validation
+function ManageResetPasswordValidationEvent {
+    $userTextBox = $global:textboxADUsername.Text
+    if (-not [string]::IsNullOrWhiteSpace($userTextBox)) {
+        # Display a validation dialog box
+        $confirmDialogResult = [System.Windows.Forms.MessageBox]::Show("Are you sure you want to reset the password for user '$userTextBox'?", "Confirm Password Reset", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question)
+        if ($confirmDialogResult -eq [System.Windows.Forms.DialogResult]::Yes) {
+            try {
+                # Reset the AD user's password
+                $reset = ResetPassword
+                if ($reset) {
+                    # Log the start of script execution
+                    LogScriptExecution -logPath $global:logFilePath -action "Password reset for user '$($userTextBox)'" -userName $env:USERNAME
+
+                    # Display a summery information dialog box
+                    [System.Windows.Forms.MessageBox]::Show("Password for user '$userTextBox' has been reset.", "Password Reset", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                    
+                    $global:buttonResetPassword.Enabled = $false
+                    $global:buttonFindADUser.Enabled = $false
+                    if (-not $global:buttonMoveOU.Enabled) {
+                        $global:buttonMoveOU.Enabled = $false
+                    }
+
+                    return $true
+                }
+
+            } catch {
+                return $_.Exception.Message
+            }
+        }
+    } 
+    else {
+        $global:buttonResetPassword.Enabled = $false
+        $global:buttonFindADUser.Enabled = $false
+        if (-not $global:buttonMoveOU.Enabled) {
+            $global:buttonMoveOU.Enabled = $false
+        }
+
+        # Display dialog box
+        [System.Windows.Forms.MessageBox]::Show("No AD username.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+    }
+}
+
 # Function to check if a user is disabled
 function IsUserDisabled($user) {
     return (-not $user.Enabled)
 }
 
+# Function to handle a locked-out account
+Function HandleLockedOut {
+    # Log action
+    LogScriptExecution -logPath $logFilePath -action "$($global:primaryUser.SamAccountName) is locked-out." -userName $env:USERNAME
+
+    # Display Unlock dialog box
+    $unlockAccountResult = [System.Windows.Forms.MessageBox]::Show("User '$($global:primaryUser.SamAccountName)' is locked. Do you want to unlock the account?", "User Locked", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question)
+    if ($unlockAccountResult -eq [System.Windows.Forms.DialogResult]::Yes) {
+        # Log action
+        LogScriptExecution -logPath $logFilePath -action "$($global:primaryUser.SamAccountName) was unlocked." -userName $env:USERNAME
+
+        # Unlock the user account
+        Unlock-ADAccount -Identity $global:primaryUser.SamAccountName
+        [System.Windows.Forms.MessageBox]::Show("User '$($global:primaryUser.SamAccountName)' has been unlocked.", "Account Unlocked", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+        
+        # Show a green V checkmark near the textbox
+        DrawVmark $global:form 125 47 "ADUsername"
+    }
+
+    # Update buttons
+    $global:buttonGeneratePassword.Enabled = $true
+    $global:buttonCopyGroups.Enabled = $true
+    $global:buttonMoveOU.Enabled = $true
+}
+
 # Function to check if a user is locked out
 function IsUserLockedOut($username) {
     return (Search-ADAccount -LockedOut | Where-Object {$_.SamAccountName -eq $username})
-}
-
-# Function to find AD user
-function FindADUser($username) {
-    $user = Get-AdUser -Filter {SamAccountName -eq $username} -Properties GivenName, Surname, Enabled, DistinguishedName
-    if ($user) {
-        return $user
-    }
-
-    return $null
-}
-
-# Function to find AD computer
-function FindADComputer($computer) {
-    $adComputer = Get-ADComputer -Filter {Name -eq $computer} -Properties *
-    if ($adComputer) {
-        return $adComputer
-    }
-
-    return $null
 }
 
 # Function to copy groups from exampleADUser to Re-Enabled user
@@ -139,6 +187,7 @@ function CopyGroups {
     # Filter out "Domain Users"
     $userGroups = $userGroups | Where-Object { $_ -ne 'Domain Users' }
     
+    $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
     Write-Host ""
     for ($i = 1; $i -le 40; $i++) {
         $currentColor = if ($i % 2 -eq 0) { 'Blue' } else { 'White' }
@@ -146,6 +195,7 @@ function CopyGroups {
         Write-Host " " -NoNewline
     }
     Write-Host ""
+    Write-Host "$($dateTime) | " -NoNewline
     Write-Host "Copying groups from $($exampleADuser)..."
     for ($i = 1; $i -le 40; $i++) {
         $currentColor = if ($i % 2 -eq 0) { 'Blue' } else { 'White' }
@@ -155,7 +205,6 @@ function CopyGroups {
     Write-Host ""
 
     if ($userGroups.Count -eq 0) {
-        $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
         Write-Host "$($dateTime) | " -NoNewline
         Write-Host "No Groups." -ForegroundColor Yellow
         return $false
@@ -164,7 +213,7 @@ function CopyGroups {
     # Add the user to the groups of the specified $adUsername
     foreach ($group in $userGroups) {
         try {
-            Add-ADGroupMember -Identity $group -Members $global:primaryUser.SamAccountName -ErrorAction Continue # SilentlyContinue # Stop ||
+            Add-ADGroupMember -Identity $group -Members $global:primaryUser.SamAccountName -ErrorAction Continue
 
             # Set a timer to avoid request flooding | DOS
             Start-Sleep -Milliseconds 300
@@ -177,7 +226,7 @@ function CopyGroups {
             Write-Host "$($group)."
 
             # Log action
-            LogScriptExecution -logPath $logFilePath -action "$($global:primaryUser.SamAccountName) joined $($group)." -userName $env:USERNAME
+            LogScriptExecution -logPath $global:logFilePath -action "$($global:primaryUser.SamAccountName) joined $($group)." -userName $env:USERNAME
         } 
 
         catch [Microsoft.ActiveDirectory.Management.ADException] {
@@ -187,10 +236,8 @@ function CopyGroups {
                 Start-Sleep -Milliseconds 300
 
             } else {
-                $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
-
                 # Log action
-                LogScriptExecution -logPath $logFilePath -action "$($_.Exception.Message)" -userName $env:USERNAME
+                LogScriptExecution -logPath $global:logFilePath -action "$($_.Exception.Message)" -userName $env:USERNAME
 
                 # Handle other errors (if needed).
                 Write-Error "An error occurred: $($_.Exception.Message)"
@@ -205,8 +252,14 @@ function CopyGroups {
 
     $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
     Write-Host ""
-    Write-Host "-------------------------------------------------------------------------------"
-    Write-Host "$($dateTime) | User $($global:primaryUser.SamAccountName) is a member of the following groups:"
+    for ($i = 1; $i -le 40; $i++) {
+        $currentColor = if ($i % 2 -eq 0) { 'Blue' } else { 'White' }
+        Write-Host "=" -ForegroundColor $currentColor -NoNewline
+        Write-Host " " -NoNewline
+    }
+    Write-Host ""
+    Write-Host "$($dateTime) | " -NoNewline
+    Write-Host "User '$($global:primaryUser.SamAccountName)' is a member of the following groups:"
     foreach ($group in $userGroups) {
         Write-Host " *** $group" -ForegroundColor Cyan
     }
@@ -307,29 +360,24 @@ function MoveUserToOU {
     }
 }
 
-# Function to handle a locked-out account
-Function HandleLockedOut {
-    # Log action
-    LogScriptExecution -logPath $logFilePath -action "$($global:primaryUser.SamAccountName) is locked-out." -userName $env:USERNAME
-
-    # Display Unlock dialog box
-    $unlockAccountResult = [System.Windows.Forms.MessageBox]::Show("User '$($global:primaryUser.SamAccountName)' is locked. Do you want to unlock the account?", "User Locked", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question)
-    if ($unlockAccountResult -eq [System.Windows.Forms.DialogResult]::Yes) {
-        # Log action
-        LogScriptExecution -logPath $logFilePath -action "$($global:primaryUser.SamAccountName) was unlocked." -userName $env:USERNAME
-
-        # Unlock the user account
-        Unlock-ADAccount -Identity $global:primaryUser.SamAccountName
-        [System.Windows.Forms.MessageBox]::Show("User '$($global:primaryUser.SamAccountName)' has been unlocked.", "Account Unlocked", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-        
-        # Show a green V checkmark near the textbox
-        DrawVmark $global:form 125 47 "ADUsername"
+# Function to find AD user
+function FindADUser($username) {
+    $user = Get-AdUser -Filter {SamAccountName -eq $username} -Properties GivenName, Surname, Enabled, DistinguishedName
+    if ($user) {
+        return $user
     }
 
-    # Update buttons
-    $global:buttonGeneratePassword.Enabled = $true
-    $global:buttonCopyGroups.Enabled = $true
-    $global:buttonMoveOU.Enabled = $true
+    return $null
+}
+
+# Function to find AD computer
+function FindADComputer($computer) {
+    $adComputer = Get-ADComputer -Filter {Name -eq $computer} -Properties *
+    if ($adComputer) {
+        return $adComputer
+    }
+
+    return $null
 }
 
 # Function to manage the FindADuser click
@@ -345,7 +393,7 @@ function ManageFindADUserEvent {
             # Check if the user is Disabled
             if (-not $global:primaryUser.Enabled) {
                 # Log action
-                LogScriptExecution -logPath $logFilePath -action "User '$($global:primaryUser.SamAccountName)' is disabled.", "User Disabled" -userName $env:USERNAME
+                LogScriptExecution -logPath $global:logFilePath -action "User '$($global:primaryUser.SamAccountName)' is disabled.", "User Disabled" -userName $env:USERNAME
 
                 # Update buttons
                 $global:buttonFindADUser.Enabled = $false
@@ -356,6 +404,12 @@ function ManageFindADUserEvent {
                 HideMark $form "ADComputer"
                 HideMark $form "CSVPath"
                 DrawXmark $Form 130 46 "ADUsername"
+
+                $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                Write-Host "$($dateTime) | " -NoNewline
+                Write-Host "User " -NoNewline -ForegroundColor Red
+                Write-Host "'$($global:primaryUser.SamAccountName)' " -NoNewline
+                Write-Host "is disabled." -ForegroundColor Red
 
                 # Show the User is disabled dialog box
                 [System.Windows.Forms.MessageBox]::Show("User '$($global:primaryUser.SamAccountName)' is disabled.", "User Disabled", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
@@ -411,49 +465,6 @@ function ManageFindADUserEvent {
     }
 }
 
-# Function to process the Reset Password validation
-function ManageResetPasswordValidationEvent {
-    $userTextBox = $global:textboxADUsername.Text
-    if (-not [string]::IsNullOrWhiteSpace($userTextBox)) {
-        # Display a validation dialog box
-        $confirmDialogResult = [System.Windows.Forms.MessageBox]::Show("Are you sure you want to reset the password for user '$userTextBox'?", "Confirm Password Reset", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question)
-        if ($confirmDialogResult -eq [System.Windows.Forms.DialogResult]::Yes) {
-            try {
-                # Reset the AD user's password
-                $reset = ResetPassword
-                if ($reset) {
-                    # Log the start of script execution
-                    LogScriptExecution -logPath $global:logFilePath -action "Password reset for user '$($userTextBox)'" -userName $env:USERNAME
-
-                    # Display a summery information dialog box
-                    [System.Windows.Forms.MessageBox]::Show("Password for user '$userTextBox' has been reset.", "Password Reset", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-                    
-                    $global:buttonResetPassword.Enabled = $false
-                    $global:buttonFindADUser.Enabled = $false
-                    if (-not $global:buttonMoveOU.Enabled) {
-                        $global:buttonMoveOU.Enabled = $false
-                    }
-
-                    return $true
-                }
-
-            } catch {
-                return $_.Exception.Message
-            }
-        }
-    } 
-    else {
-        $global:buttonResetPassword.Enabled = $false
-        $global:buttonFindADUser.Enabled = $false
-        if (-not $global:buttonMoveOU.Enabled) {
-            $global:buttonMoveOU.Enabled = $false
-        }
-
-        # Display dialog box
-        [System.Windows.Forms.MessageBox]::Show("No AD username.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-    }
-}
-
 # Function to manage the Find Computer click
 function ManageFindComputerEvent {
     # Get the computer object from Active Directory
@@ -475,6 +486,12 @@ function ManageFindComputerEvent {
             HideMark $form "ADComputer"
             HideMark $form "CSVPath"
             DrawXmark $form 130 140 "ADComputer" 
+
+            $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+            Write-Host "$($dateTime) | " -NoNewline
+            Write-Host "Computer " -NoNewline -ForegroundColor Red
+            Write-Host "'$($global:textboxADComputer.Text)' " -NoNewline
+            Write-Host "is disabled." -ForegroundColor Red
 
             # Show the User is disabled dialog box
             [System.Windows.Forms.MessageBox]::Show("Computer '$($global:primaryComputer.Name)' is disabled", "Computer Disabled", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
@@ -507,11 +524,22 @@ function ManageFindComputerEvent {
         # Log action
         LogScriptExecution -logPath $global:logFilePath -action "Computer '$($global:textboxADComputer.Text)' not found" -userName $env:USERNAME
 
+        $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+        Write-Host "$($dateTime) | " -NoNewline
+        Write-Host "Computer " -NoNewline -ForegroundColor Red
+        Write-Host "'$($global:textboxADComputer.Text)' " -NoNewline
+        Write-Host "not found." -ForegroundColor Red
+
+        # Disable buttons
+        $global:buttonRemoveGroups.Enabled = $false
+        $global:buttonMoveOU.Enabled = $false
+
         # Show the User is disabled dialog box
         [System.Windows.Forms.MessageBox]::Show("Computer '$($global:textboxADComputer.Text)' not found", "Computer Not Found", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-
-        $global:buttonRemoveGroups.Enabled = $false
+        
+        # Focus of AD Computer textbox
         $global:textboxADComputer.Focus()
+
         return $false
     }
 }

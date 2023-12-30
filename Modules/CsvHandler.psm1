@@ -14,6 +14,109 @@ foreach ($moduleName in $modulePaths) {
     Import-Module $modulePath -Force
 }
 
+# Function to perform Checkups & csv updates
+function PerformComputerActions($computerNames, $csvData) {
+    for ($i = 0; $i -lt $computerNames.Count; $i++) {
+        $computerName = $computerNames[$i]
+
+        # Check if computer exists in AD
+        $computer = FindADComputer $computerName
+        if ([string]::IsNullOrEmpty($computer)) {
+            $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+            Write-Host "$($dateTime) | " -NoNewline
+            Write-Host "Computer " -NoNewline -ForegroundColor Yellow
+            Write-Host "'$($computerName)' " -NoNewline
+            Write-Host "not found." -ForegroundColor Yellow
+
+            $csvData[$i].Results = "Not Found"
+            continue  # Skip to the next iteration
+        }
+
+        # If computer is disabled, enable it
+        if (-not $computer.Enabled) {
+            try {
+                $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                Write-Host "$($dateTime) | " -NoNewline
+                Write-Host "Computer " -NoNewline -ForegroundColor Yellow
+                Write-Host "'$($computerName)' " -NoNewline
+                Write-Host "is disabled." -ForegroundColor Yellow
+
+                # Confirm re-enable action with user
+                $confirmReEnable = [System.Windows.Forms.MessageBox]::Show("Computer '$($computer.Name)' is disabled. Re-Enable?", "Re-Enable", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question)
+                if ($confirmReEnable -eq [System.Windows.Forms.DialogResult]::Yes) {
+                    Enable-AdAccount -Identity $computer
+                    $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                    Write-Host "$($dateTime) | " -NoNewline
+                    Write-Host "Computer " -NoNewline -ForegroundColor Green
+                    Write-Host "'$($computer.Name)' " -NoNewline
+                    Write-Host "re-enabled successfully." -ForegroundColor Green
+
+                    # Update the 'Disabled' value in the CSV to 'TRUE'
+                    $csvData[$i].ReEnabled = "TRUE"
+                }
+                else {
+                    $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                    Write-Host "$($dateTime) | " -NoNewline
+                    Write-Host "Re-Enable skipped on: " -NoNewline -ForegroundColor Yellow
+                    Write-Host "'$($computer.Name)'."
+
+                    $csvData[$i].ReEnabled = "FALSE"
+                }
+
+                Start-Sleep -Milliseconds 500
+            }
+            catch {
+                $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                Write-Host "$($dateTime) | " -NoNewline
+                Write-Host "Failed to enable " -NoNewline -ForegroundColor Red
+                Write-Host "'$($computer.Name)'."
+                Write-Host "$($_)" -ForegroundColor Red
+
+                # Update the 'Disabled' value in the CSV to 'FALSE'
+                $csvData[$i].ReEnabled = "FALSE"
+                $csvData[$i].Results = "Failed to Re-Enable"
+            }
+        }
+
+        # Check if the computer account is locked out
+        $isLockedOut = ($computer."msDS-User-Account-Control-Computed" -band 0x00100000) -eq 0x00100000
+
+        # Output the result
+        if ($isLockedOut) {
+            $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+            Write-Host "$($dateTime) | " -NoNewline
+            Write-Host "Computer account " -NoNewline -ForegroundColor Yellow
+            Write-Host "'$($computer.Name)' " -NoNewline
+            Write-Host "is locked out." -ForegroundColor Yellow
+
+            # Confirm re-enable action with user
+            $confirmReEnable = [System.Windows.Forms.MessageBox]::Show("Computer '$($computer.Name)' is disabled. Re-Enable?", "Re-Enable", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question)
+            if ($confirmReEnable -eq [System.Windows.Forms.DialogResult]::Yes) {
+                # Unlock the locked-out computer account
+                Unlock-AdAccount -Identity $computer
+
+                $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                Write-Host "$($dateTime) | " -NoNewline
+                Write-Host "Computer account " -NoNewline -ForegroundColor Green
+                Write-Host "'$($computer.Name)' " -NoNewline
+                Write-Host "has been unlocked." -ForegroundColor Green
+
+                $csvData[$i].Unlocked = "TRUE"
+            }
+            else {
+                $csvData[$i].Unlocked = "FALSE"
+            }
+        } 
+
+        # Update CSV file
+        $csvData[$i].Results = "OK"
+        $components = $computer.DistinguishedName -split ','
+        $filteredComponents = $components | Where-Object { $_ -notmatch 'CN=' }
+        $disName = $filteredComponents -join ','
+        $csvData[$i].OldLocation = $disName
+    }
+}
+
 # Function to Browse and Load the CSV file
 function BrowseAndLoadCSV {
     try {
@@ -109,69 +212,9 @@ function BrowseAndLoadCSV {
                             $computerNames.Add($_.ComputerName.ToString())
                         }
                     }
-        
-                    # Iterate over computer names and perform AD actions
-                    for ($i = 0; $i -lt $computerNames.Count; $i++) {
-                        $computerName = $computerNames[$i]
-        
-                        # Check if computer exists in AD
-                        $computer = FindADComputer $computerName
-                        if ([string]::IsNullOrEmpty($computer)) {
-                            Write-Warning "'$($computerName)' not found."
-                            $csvData[$i].Results = "Not Found"
-                            continue  # Skip to the next iteration
-                        }
-        
-                        # If computer is disabled, enable it
-                        if (-not $computer.Enabled) {
-                            try {
-                                Write-Host "'$($computer.Name)' is disabled." -ForegroundColor Yellow
-                                # Confirm action with user
-                                $confirmReEnable = [System.Windows.Forms.MessageBox]::Show("Computer '$($computer.Name)' is disabled. Re-Enable?", "Re-Enable", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question)
-                                if ($confirmReEnable -eq [System.Windows.Forms.DialogResult]::Yes) {
-                                    Enable-AdAccount -Identity $computer
-                                    Write-Host "'$($computer.Name)' was enabled." -ForegroundColor Green
-                                    
-                                    # Update the 'Disabled' value in the CSV to 'TRUE'
-                                    $csvData[$i].ReEnabled = "TRUE"
-                                }
-                                else {
-                                    Write-Host "Re-Enable skipped on: '$($computer.Name)'."
-                                    $csvData[$i].ReEnabled = "FALSE"
-                                }
-                                
-                                Start-Sleep -Milliseconds 500
-                            }
-                            catch {
-                                Write-Host "Failed to enable '$($computer.Name)': $_" -ForegroundColor Red
-                                
-                                # Update the 'Disabled' value in the CSV to 'FALSE'
-                                $csvData[$i].ReEnabled = "FALSE"
-                                $csvData[$i].Results = "Failed to Re-Enable"
-                            }
-                        }
-        
-                        # Check if the computer account is locked out
-                        $isLockedOut = ($computer."msDS-User-Account-Control-Computed" -band 0x00100000) -eq 0x00100000
-        
-                        # Output the result
-                        if ($isLockedOut) {
-                            Write-Host "Computer account '$($computer.Name)' is locked out." -ForegroundColor Red
-        
-                            # Unlock the locked-out computer account
-                            Unlock-AdAccount -Identity $computer
-                            Write-Host "Computer account '$($computer.Name)' has been unlocked." -ForegroundColor Green
-                            $csvData[$i].Unlocked = "TRUE"
-                        } 
-                        
-                        # Update CSV file
-                        $csvData[$i].Results = "OK"
-                        $components = $computer.DistinguishedName -split ','
-                        $filteredComponents = $components | Where-Object { $_ -notmatch 'CN=' }
-                        $disName = $filteredComponents -join ','
-                        $csvData[$i].OldLocation = $disName
-                    }
-
+                    # Perform computer actions
+                    PerformComputerActions $computerNames $csvData
+                
                     # Export the modified CSV data back to the original CSV file
                     $csvData | Export-Csv -Path $selectedFilePath -NoTypeInformation
         
