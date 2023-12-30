@@ -27,7 +27,8 @@ $modulePaths = @(
     "moveOUForm",       # Manages the Move OU forms
     "CsvHandler",       # Handles CSV file operations
     "ADHandler",        # Handles Active Directory operations
-    "BuildForm"         # Builds and configures forms
+    "BuildForm",        # Builds and configures forms
+    "MenuStrip"         # Builds the top menu
 )
 
 foreach ($moduleName in $modulePaths) {
@@ -63,52 +64,6 @@ function ManageFormClose() {
     }
 }
 
-# Import necessary assemblies
-Add-Type -AssemblyName System.Windows.Forms
-Add-Type -AssemblyName System.Drawing
-
-# Function to create the About window
-function ShowAboutWindow {
-    $aboutForm = New-Object System.Windows.Forms.Form
-    $aboutForm.Text = "QuicK-AD"
-    $aboutForm.Width = 300
-    $aboutForm.Height = 200
-    $aboutForm.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
-    $aboutForm.MaximizeBox = $false
-    $aboutForm.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
-
-    $labelScripter = New-Object System.Windows.Forms.Label
-    $labelScripter.Text = "Written by: Gil Shwartz"
-    $labelScripter.Location = New-Object System.Drawing.Point(10, 10)
-    $labelScripter.AutoSize = $true
-
-    $labelVersion = New-Object System.Windows.Forms.Label
-    $labelVersion.Text = "Version: 1.0.0"
-    $labelVersion.Location = New-Object System.Drawing.Point(10, 40)
-
-    $linkGitHub = New-Object System.Windows.Forms.LinkLabel
-    $linkGitHub.Text = "GitHub"
-    $linkGitHub.Location = New-Object System.Drawing.Point(10, 70)
-    $linkGitHub.AutoSize = $true
-    $linkGitHub.Add_LinkClicked({
-        [System.Diagnostics.Process]::Start("https://github.com/GShwartz/Quick-AD/tree/main")
-    })
-
-    $buttonOK = New-Object System.Windows.Forms.Button
-    $buttonOK.Text = "OK"
-    $buttonOK.DialogResult = [System.Windows.Forms.DialogResult]::OK
-    $buttonOK.Location = New-Object System.Drawing.Point(100, 120)
-
-    # Add controls to the form
-    $aboutForm.Controls.Add($labelVersion)
-    $aboutForm.Controls.Add($labelScripter)
-    $aboutForm.Controls.Add($linkGitHub)
-    $aboutForm.Controls.Add($buttonOK)
-
-    # Show the form
-    $aboutForm.ShowDialog()
-}
-
 # ============== MAIN SECTION =================== #
 # Log Action
 LogScriptExecution -logPath $logFilePath -action ("= " * 35) -userName $env:USERNAME
@@ -116,13 +71,12 @@ LogScriptExecution -logPath $logFilePath -action ("{0,42}" -f "Script Start") -u
 LogScriptExecution -logPath $logFilePath -action ("= " * 35) -userName $env:USERNAME
 
 # Define vars
-$version = "1.0.0"
-
+$global:version = "1.0.0"
 $global:primaryUser = $null 
 $global:primaryComputer = $null
 $global:isComputer = $false
 $global:isCSV = $false
-$global:searchBase = $null
+$global:statusBarMessage = $null
 
 $adUserNamePictureName = "ADUsername"
 $adComputerPictureName = "ADComputer"
@@ -134,24 +88,7 @@ $global:form = CreateCanvas "QUICK-AD" -x 470 -y 380
 $form.MaximizeBox = $false
 
 # Create a top menu strip
-$global:menuStrip = New-Object System.Windows.Forms.MenuStrip
-$global:menuStrip.Height = 12
-$global:menuStrip.BackColor = [System.Drawing.Color]::Wheat
-
-# File menu
-$fileMenu = $global:menuStrip.Items.Add("File")
-$exitMenuItem = $fileMenu.DropDownItems.Add("Exit")
-$exitMenuItem.Add_Click({
-    # Exit the application
-    [Windows.Forms.Application]::Exit()
-})
-
-# Help menu
-$helpMenu = $global:menuStrip.Items.Add("Help")
-$helpMenuAbout = $helpMenu.DropDownItems.Add("About")
-$helpMenuAbout.Add_Click({
-    ShowAboutWindow
-})
+$global:menuStrip = CreateMenuStrip
 
 # Create labels
 $labelADUsername = CreateLabel -text "User Name" -x 10 -y 35 -width 120 -height 20
@@ -173,58 +110,290 @@ $global:buttonReEnable = CreateButton -text "Re-Enable" -x 310 -y 120 -width 120
 $global:buttonCopyGroups = CreateButton -text "Copy Groups" -x 310 -y 160 -width 120 -height 25 -enabled $false
 $global:buttonRemoveGroups = CreateButton -text "Remove Groups" -x 310 -y 200 -width 120 -height 25 -enabled $false
 $global:buttonMoveOU = CreateButton -text "Move OU" -x 310 -y 240 -width 120 -height 25 -enabled $false
-$global:buttonExit = CreateButton -text "Exit" -x 330 -y 300 -width 80 -height 25 -enabled $true
 
-# ============== TOOLTIPS =================== #
+# ================ TOOLTIPS =================== #
 # ________====== Find AD User ======_________ #
 # Create the buttonFindADUser tooltip
 $buttonFindADUserTooltip = New-Object System.Windows.Forms.ToolTip
-$buttonFindADUserTooltip.SetToolTip($buttonFindADUser, "Find AD User")
+$buttonFindADUserTooltip.SetToolTip($buttonFindADUser, "Search for an Active Directory User account")
 
-# Event handler for the MouseHover event on buttonFindADUser
-$buttonFindADUser.Add_MouseHover({
-    Start-Sleep -Seconds 2
-    $buttonFindADUserTooltip.Show("Search for an Active Directory user account.", $buttonFindADUser, 0, -$button.Height)
+# Create a timer for the find AD User tooltip delay
+$findADUserTooltipTimer = New-Object System.Windows.Forms.Timer
+$findADUserTooltipTimer.Interval = 2000  # 2000 milliseconds (2 seconds)
+
+# Event handler for the MouseEnter event on buttonFindADUser
+$buttonFindADUser.Add_MouseEnter({
+    # Start the timer when the mouse enters the button
+    $findADUserTooltipTimer.Start()
 })
 
 # Event handler for the MouseLeave event on buttonFindADUser
 $buttonFindADUser.Add_MouseLeave({
+    # Stop the timer when the mouse leaves the button
+    $findADUserTooltipTimer.Stop()
     $buttonFindADUserTooltip.Hide($buttonFindADUser)
 })
 
-# Event handler for the Popup event on the tooltip
-$buttonFindADUserTooltip.Add_Popup({
-    if (-not $buttonFindADUser.ClientRectangle.Contains($buttonFindADUser.PointToClient([System.Windows.Forms.Cursor]::Position))) {
-        $buttonFindADUserTooltip.Hide($buttonFindADUser)
-    }
+# Event handler for the Tick event on the timer
+$findADUserTooltipTimer.Add_Tick({
+    # Stop the timer after displaying the tooltip
+    $findADUserTooltipTimer.Stop()
 })
 
 # ________====== Find AD Computer ======_________ #
 # Create the buttonFindComputer tooltip
 $buttonFindComputerTooltip = New-Object System.Windows.Forms.ToolTip
-$buttonFindComputerTooltip.SetToolTip($buttonFindComputer, "Find AD Computer")
+$buttonFindComputerTooltip.SetToolTip($buttonFindComputer, "Search for an Active Directory Computer account")
 
-# Event handler for the MouseHover event on buttonFindComputer
-$buttonFindComputer.Add_MouseHover({
-    Start-Sleep -Seconds 2
-    $buttonFindComputerTooltip.Show("Search for an Active Directory Computer account.", $buttonFindComputer, 0, -$button.Height)
+# Create a timer for the find AD Computer tooltip delay
+$findADComputerTooltipTimer = New-Object System.Windows.Forms.Timer
+$findADComputerTooltipTimer.Interval = 2000  # 2000 milliseconds (2 seconds)
+
+# Event handler for the MouseEnter event
+$buttonFindComputer.Add_MouseEnter({
+    # Start the timer when the mouse enters the button
+    $findADComputerTooltipTimer.Start()
 })
 
-# Event handler for the MouseLeave event on buttonFindComputer
+# Event handler for the MouseLeave event
 $buttonFindComputer.Add_MouseLeave({
+    # Stop the timer when the mouse leaves the button
+    $findADComputerTooltipTimer.Stop()
     $buttonFindComputerTooltip.Hide($buttonFindComputer)
 })
 
-# Event handler for the Popup event on the tooltip
-$buttonFindComputerTooltip.Add_Popup({
-    if (-not $buttonFindComputer.ClientRectangle.Contains($buttonFindComputer.PointToClient([System.Windows.Forms.Cursor]::Position))) {
-        $buttonFindComputerTooltip.Hide($buttonFindComputer)
-    }
+# Event handler for the Tick event on the timer
+$findADComputerTooltipTimer.Add_Tick({
+    # Stop the timer after displaying the tooltip
+    $findADComputerTooltipTimer.Stop()
 })
 
+# ________====== Browse ======_________ #
+# Create the buttonBrowseCSV tooltip
+$buttonBrowseTooltip = New-Object System.Windows.Forms.ToolTip
+$buttonBrowseTooltip.SetToolTip($buttonBrowseForCSVFile, "Browse for a CSV file with the 'Username' or 'ComputerName' headers")
 
+# Create a timer for the find AD Computer tooltip delay
+$browseTooltipTimer = New-Object System.Windows.Forms.Timer
+$browseTooltipTimer.Interval = 2000  # 2000 milliseconds (2 seconds)
 
+# Event handler for the MouseEnter event
+$buttonBrowseForCSVFile.Add_MouseEnter({
+    # Start the timer when the mouse enters the button
+    $browseTooltipTimer.Start()
+})
 
+# Event handler for the MouseLeave event
+$buttonBrowseForCSVFile.Add_MouseLeave({
+    # Stop the timer when the mouse leaves the button
+    $browseTooltipTimer.Stop()
+    $buttonBrowseTooltip.Hide($buttonBrowseForCSVFile)
+})
+
+# Event handler for the Tick event on the timer
+$browseTooltipTimer.Add_Tick({
+    # Stop the timer after displaying the tooltip
+    $browseTooltipTimer.Stop()
+})
+
+# ________====== Generate Password ======_________ #
+# Create the buttonGeneratePassword tooltip
+$buttonGeneratePasswordTooltip = New-Object System.Windows.Forms.ToolTip
+
+# Create a timer for the find AD Computer tooltip delay
+$generatePasswordTooltipTimer = New-Object System.Windows.Forms.Timer
+$generatePasswordTooltipTimer.Interval = 2000  # 2000 milliseconds (2 seconds)
+
+# Event handler for the MouseEnter event
+$buttonGeneratePassword.Add_MouseEnter({
+    if ([string]::IsNullOrEmpty($textboxCSVFilePath.Text)){
+        $buttonGeneratePasswordTooltip.SetToolTip($buttonGeneratePassword, "Generate password for '$($textboxADUsername.Text)'")
+    }
+    else {
+        $buttonGeneratePasswordTooltip.SetToolTip($buttonGeneratePassword, "Generate passwords for CSV file")
+    }
+
+    # Start the timer when the mouse enters the button
+    $generatePasswordTooltipTimer.Start()
+})
+
+# Event handler for the MouseLeave event
+$buttonGeneratePassword.Add_MouseLeave({
+    # Stop the timer when the mouse leaves the button
+    $generatePasswordTooltipTimer.Stop()
+    $buttonGeneratePasswordTooltip.Hide($buttonGeneratePassword)
+})
+
+# Event handler for the Tick event on the timer
+$generatePasswordTooltipTimer.Add_Tick({
+    # Stop the timer after displaying the tooltip
+    $generatePasswordTooltipTimer.Stop()
+})
+
+# ________====== Reset Password ======_________ #
+# Create the buttonResetPassword tooltip
+$buttonResetPasswordTooltip = New-Object System.Windows.Forms.ToolTip
+
+# Create a timer for the find AD Computer tooltip delay
+$resetPasswordTooltipTimer = New-Object System.Windows.Forms.Timer
+$resetPasswordTooltipTimer.Interval = 2000  # 2000 milliseconds (2 seconds)
+
+# Event handler for the MouseEnter event
+$buttonResetPassword.Add_MouseEnter({
+    if ([string]::IsNullOrEmpty($textboxCSVFilePath.Text)){
+        $buttonGeneratePasswordTooltip.SetToolTip($buttonResetPassword, "Reset password for '$($textboxADUsername.Text)'")
+    }
+    else {
+        $buttonGeneratePasswordTooltip.SetToolTip($buttonResetPassword, "Reset passwords for CSV file")
+    }
+
+    # Start the timer when the mouse enters the button
+    $resetPasswordTooltipTimer.Start()
+})
+
+# Event handler for the MouseLeave event
+$buttonResetPassword.Add_MouseLeave({
+    # Stop the timer when the mouse leaves the button
+    $resetPasswordTooltipTimer.Stop()
+    $buttonResetPasswordTooltip.Hide($buttonResetPassword)
+})
+
+# Event handler for the Tick event on the timer
+$resetPasswordTooltipTimer.Add_Tick({
+    # Stop the timer after displaying the tooltip
+    $resetPasswordTooltipTimer.Stop()
+})
+
+# ________====== Re-Enable ======_________ #
+# Create the Re-Enable tooltip
+$buttonReEnableTooltip = New-Object System.Windows.Forms.ToolTip
+
+# Create a timer for the find AD Computer tooltip delay
+$reEnableTooltipTimer = New-Object System.Windows.Forms.Timer
+$reEnableTooltipTimer.Interval = 2000  # 2000 milliseconds (2 seconds)
+
+# Event handler for the MouseEnter event
+$buttonReEnable.Add_MouseEnter({
+    if (-not [string]::IsNullOrEmpty($textboxADUsername.Text)){
+        $buttonReEnableTooltip.SetToolTip($buttonReEnable, "Re-Enable User '$($textboxADUsername.Text)' with an example AD user account")
+    }
+    else {
+        $buttonReEnableTooltip.SetToolTip($buttonReEnable, "Re-Enable Computer '$($textboxADComputer.Text)' with an example AD computer account")
+    }
+
+    # Start the timer when the mouse enters the button
+    $reEnableTooltipTimer.Start()
+})
+
+# Event handler for the MouseLeave event
+$buttonReEnable.Add_MouseLeave({
+    # Stop the timer when the mouse leaves the button
+    $reEnableTooltipTimer.Stop()
+    $buttonReEnableTooltip.Hide($buttonReEnable)
+})
+
+# Event handler for the Tick event on the timer
+$reEnableTooltipTimer.Add_Tick({
+    # Stop the timer after displaying the tooltip
+    $reEnableTooltipTimer.Stop()
+})
+
+# ________====== Copy Groups ======_________ #
+# Create the Copy Groups tooltip
+$buttonCopyGroupsTooltip = New-Object System.Windows.Forms.ToolTip
+$buttonCopyGroupsTooltip.SetToolTip($buttonCopyGroups, "Copy groups from an example AD user account")
+
+# Create a timer for the copy groups tooltip delay
+$copyGroupsTooltipTimer = New-Object System.Windows.Forms.Timer
+$copyGroupsTooltipTimer.Interval = 2000  # 2000 milliseconds (2 seconds)
+
+# Event handler for the MouseEnter event
+$buttonCopyGroups.Add_MouseEnter({
+    # Start the timer when the mouse enters the button
+    $copyGroupsTooltipTimer.Start()
+})
+
+# Event handler for the MouseLeave event 
+$buttonCopyGroups.Add_MouseLeave({
+    # Stop the timer when the mouse leaves the button
+    $copyGroupsTooltipTimer.Stop()
+    $buttonCopyGroupsTooltip.Hide($buttonCopyGroups)
+})
+
+# Event handler for the Tick event on the timer
+$copyGroupsTooltipTimer.Add_Tick({
+    # Stop the timer after displaying the tooltip
+    $copyGroupsTooltipTimer.Stop()
+})
+
+# ________====== Remove Groups ======_________ #
+# Create the Remove Groups tooltip
+$buttonRemoveGroupsTooltip = New-Object System.Windows.Forms.ToolTip
+
+# Create a timer for the remove groups tooltip delay
+$removeGroupsTooltipTimer = New-Object System.Windows.Forms.Timer
+$removeGroupsTooltipTimer.Interval = 2000  # 2000 milliseconds (2 seconds)
+
+# Event handler for the MouseEnter event
+$buttonRemoveGroups.Add_MouseEnter({
+    $buttonRemoveGroupsTooltip.SetToolTip($buttonRemoveGroups, "Remove '$($textboxADUsername.Text)' group memberships")
+
+    # Start the timer when the mouse enters the button
+    $removeGroupsTooltipTimer.Start()
+})
+
+# Event handler for the MouseLeave event 
+$buttonRemoveGroups.Add_MouseLeave({
+    # Stop the timer when the mouse leaves the button
+    $removeGroupsTooltipTimer.Stop()
+    $buttonRemoveGroupsTooltip.Hide($buttonRemoveGroups)
+})
+
+# Event handler for the Tick event on the timer
+$removeGroupsTooltipTimer.Add_Tick({
+    # Stop the timer after displaying the tooltip
+    $removeGroupsTooltipTimer.Stop()
+})
+
+# ________====== Move OU ======_________ #
+# Create the Move OU tooltip
+$buttonMoveOUTooltip = New-Object System.Windows.Forms.ToolTip
+
+# Create a timer for the remove groups tooltip delay
+$moveOUTooltipTimer = New-Object System.Windows.Forms.Timer
+$moveOUTooltipTimer.Interval = 2000  # 2000 milliseconds (2 seconds)
+
+# Event handler for the MouseEnter event
+$buttonMoveOU.Add_MouseEnter({
+    if (-not [string]::IsNullOrEmpty($textboxADUsername.Text)) {
+        $buttonMoveOUTooltip.SetToolTip($buttonMoveOU, "Relocate the user '$($textboxADUsername.Text)' to OU by example user account or bulk location")
+    }
+    elseif (-not [string]::IsNullOrEmpty($textboxADComputer.Text)) {
+        $buttonMoveOUTooltip.SetToolTip($buttonMoveOU, "Relocate the computer '$($textboxADComputer.Text)' to OU by example computer account")
+    }
+    elseif (-not [string]::IsNullOrEmpty($textboxCSVFilePath.Text)) {
+        $buttonMoveOUTooltip.SetToolTip($buttonMoveOU, "Relocate CSV file data to OU by an AD example computer or user account")
+    }
+    else {
+        # do nothing
+    }
+
+    # Start the timer when the mouse enters the button
+    $moveOUTooltipTimer.Start()
+})
+
+# Event handler for the MouseLeave event 
+$buttonMoveOU.Add_MouseLeave({
+    # Stop the timer when the mouse leaves the button
+    $moveOUTooltipTimer.Stop()
+    $buttonMoveOUTooltip.Hide($buttonMoveOU)
+})
+
+# Event handler for the Tick event on the timer
+$moveOUTooltipTimer.Add_Tick({
+    # Stop the timer after displaying the tooltip
+    $moveOUTooltipTimer.Stop()
+})
 
 # ============== EVENT HANDLERS =================== #
 # Event handler for mouse down on AD Username textbox
@@ -240,8 +409,12 @@ $textboxADUsername.Add_MouseDown({
         HideMark $form $csvPathPictureName
     }
 
-    $buttonFindComputer.Enabled = $false
     $buttonFindADUser.Enabled = $false
+    $buttonFindComputer.Enabled = $false
+    $buttonGeneratePassword.Enabled = $false
+    $buttonCopyGroups.Enabled = $false
+    $buttonRemoveGroups.Enabled = $false
+    $buttonReEnable.Enabled = $false
 })
 
 # Event handler for mouse down on AD Computer textbox
@@ -256,6 +429,7 @@ $textboxADComputer.Add_MouseDown({
     $buttonFindComputer.Enabled = $false
     $buttonGeneratePassword.Enabled = $false
     $buttonCopyGroups.Enabled = $false
+    $buttonRemoveGroups.Enabled = $false
     $buttonReEnable.Enabled = $false
 })
 
@@ -632,11 +806,6 @@ $buttonMoveOU.Add_Click({
     $buttonFindADUser.Enabled = $false
 })
 
-$buttonExit.Add_Click({
-    # Exit the application
-    [Windows.Forms.Application]::Exit()
-})
-
 # Add controls to form
 $form.Controls.Add($menuStrip)
 $form.Controls.Add($labelADUsername)
@@ -654,7 +823,6 @@ $form.Controls.Add($buttonReEnable)
 $form.Controls.Add($buttonCopyGroups)
 $form.Controls.Add($buttonRemoveGroups)
 $form.Controls.Add($buttonMoveOU)
-#$form.Controls.Add($buttonExit)
 
 $form.Add_FormClosing({
     ManageFormClose
