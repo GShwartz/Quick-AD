@@ -50,6 +50,9 @@ function GeneratePassword() {
     $securePassword = ConvertTo-SecureString -String $password -AsPlainText -Force
     [System.Windows.Forms.Clipboard]::SetText([System.Runtime.InteropServices.Marshal]::PtrToStringUni([System.Runtime.InteropServices.Marshal]::SecureStringToGlobalAllocUnicode($securePassword)))
 
+    # Update statusbar message
+    UpdateStatusBar "Password generated for $($global:primaryUser.SamAccountName) & has been copied to the clipboard." -color 'Green'
+    
     # Display the generated password
     [System.Windows.Forms.MessageBox]::Show("Generated Password: $password`n`nThe password has been copied to the clipboard.", "Password Generated", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
     
@@ -71,6 +74,9 @@ function ResetPassword {
             # Disable "Change password at next logon"
             Set-AdUser -Identity $global:primaryUser.SamAccountName -ChangePasswordAtLogon $false
 
+            # Update statusbar message
+            UpdateStatusBar "Password reset for '$($global:primaryUser.SamAccountName)' completed." -color 'Green'
+
             # Log action
             LogScriptExecution -logPath $global:logFilePath -action "Password reset for '$($global:primaryUser.SamAccountName)' completed." -userName $env:USERNAME
 
@@ -79,6 +85,9 @@ function ResetPassword {
         } catch {
             [System.Windows.Forms.MessageBox]::Show("Error while resetting the password for user '$($global:primary.SamAccountName)': $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
             
+            # Update statusbar message
+            UpdateStatusBar "Error while resetting the password for user '$($global:primary.SamAccountName)'. Check log." -color 'Red'
+
             # Log action
             LogScriptExecution -logPath $global:logFilePath -action "$($_)" -userName $env:USERNAME
             
@@ -87,6 +96,9 @@ function ResetPassword {
     }
 
     else {
+        # Update statusbar message
+        UpdateStatusBar "AD user is missing." -color 'Red'
+
         [System.Windows.Forms.MessageBox]::Show("AD user is missing.", "Generate Password: User Not Found", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         return
     }
@@ -105,6 +117,9 @@ function ManageResetPasswordValidationEvent {
                 if ($reset) {
                     # Log the start of script execution
                     LogScriptExecution -logPath $global:logFilePath -action "Password reset for user '$($userTextBox)'" -userName $env:USERNAME
+
+                    # Update statusbar message
+                    UpdateStatusBar "Password for user '$($userTextBox)' has been reset." -color 'Green'
 
                     # Display a summery information dialog box
                     [System.Windows.Forms.MessageBox]::Show("Password for user '$userTextBox' has been reset.", "Password Reset", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
@@ -129,6 +144,9 @@ function ManageResetPasswordValidationEvent {
         if (-not $global:buttonMoveOU.Enabled) {
             $global:buttonMoveOU.Enabled = $false
         }
+
+        # Update statusbar message
+        UpdateStatusBar "AD Username is missing." -color 'Red'
 
         # Display dialog box
         [System.Windows.Forms.MessageBox]::Show("No AD username.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
@@ -484,7 +502,7 @@ function ManageFindADUserEvent {
         else {
             # Draw red X mark near the username textbox
             HideMark $form "ADUsername"
-            DrawXmark $form 130 46 "ADUsername"
+            DrawXmark $form 130 50 "ADUsername"
 
             # Log action
             LogScriptExecution -logPath $global:logFilePath -action "User '$($global:primaryUser.SamAccountName)' not found." -userName $env:USERNAME
@@ -510,7 +528,7 @@ function ManageFindADUserEvent {
 
         # Draw red X mark near the username textbox
         HideMark $form "ADUsername"
-        DrawXmark $form 130 44 "ADUsername"
+        DrawXmark $form 130 50 "ADUsername"
         
         return $false
     }
