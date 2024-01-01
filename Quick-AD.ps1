@@ -1,5 +1,6 @@
 ﻿# 1. Finish statusbar updates
 # 2. Finish event handler with button management on CSV & Computer
+# 3. Fix CopyGroups showing success if no groups
 
 
 # Import form modules
@@ -116,7 +117,7 @@ $global:buttonMoveOU = CreateButton -text "Move OU" -x 310 -y 240 -width 120 -he
 CreateStatusBar
 
 # Update statusbar message
-UpdateStatusBar "Ready" -color 'Green'
+UpdateStatusBar "Ready" -color 'White'
 
 # Create tooltips
 CreateToolTip -control $buttonFindADUser -text "Search for an Active Directory User account"
@@ -146,6 +147,8 @@ $textboxADUsername.Add_MouseDown({
     if (-not [string]::IsNullOrEmpty($global:primaryUser) -or -not [string]::IsNullOrEmpty($textboxCSVFilePath.Text)) {$buttonGeneratePassword.Enabled = $true}
     else {$buttonGeneratePassword.Enabled = $false}
 
+    if ([string]::IsNullOrEmpty($textboxADUsername.Text)) {$buttonGeneratePassword.Enabled = $false}
+
     if (-not [string]::IsNullOrEmpty($global:primaryUser)) {
         if ($buttonCopyGroups.Enabled) {$buttonCopyGroups.Enabled = $true}
         else {$buttonCopyGroups.Enabled = $false}
@@ -168,22 +171,22 @@ $textboxADComputer.Add_MouseDown({
 
     $textboxADUsername.Text = ""
     $textboxCSVFilePath.Text = ""
-
     $buttonFindADUser.Enabled = $false
-    if (-not $buttonFindComputer.Enabled) {
+
+    if ([string]::IsNullOrEmpty($textboxADComputer.Text)) {
         $buttonFindComputer.Enabled = $false
-    }
-    else {
-        $buttonFindComputer.Enabled = $true
-    }
-    $buttonGeneratePassword.Enabled = $false
-    $buttonCopyGroups.Enabled = $false
-    $buttonRemoveGroups.Enabled = $false
-    if (-not $buttonReEnable.Enabled) {
+        $buttonGeneratePassword.Enabled = $false
+        $buttonResetPassword.Enabled = $false
+        $buttonCopyGroups.Enabled = $false
+        $buttonRemoveGroups.Enabled = $false
         $buttonReEnable.Enabled = $false
+        $buttonMoveOU.Enabled = $false
     }
     else {
-        $buttonReEnable.Enabled = $true
+        if (-not $buttonFindComputer.Enabled) {$buttonFindComputer.Enabled = $false} else {$buttonFindComputer.Enabled = $true}
+        if (-not $buttonMoveOU.Enabled) {$buttonMoveOU.Enabled = $false} else {$buttonMoveOU.Enabled = $true}
+        if ($buttonRemoveGroups.Enabled) {$buttonRemoveGroups.Enabled = $false}
+        if ($buttonCopyGroups.Enabled) {$buttonCopyGroups.Enabled = $false}
     }
 })
 
@@ -402,20 +405,37 @@ $buttonReEnable.Add_Click({
             
                 # Check if the account is enabled
                 if ($compAccount.Enabled) {
-                    Write-Host "$($compName) has been re-enabled." -ForegroundColor Green
+                    $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                    Write-Host "$($dateTime) | " -NoNewline
+                    Write-Host "'$($compName)' " -NoNewline
+                    Write-Host "has been re-enabled." -ForegroundColor Green
                     
+                    # Update statusbar message
+                    UpdateStatusBar "Computer '$($compName)' has been re-enabled." -color 'White'
+
                     # Display a success dialog box
                     [System.Windows.Forms.MessageBox]::Show("$($compName) has been re-enabled.", "Success", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
 
                     $buttonFindComputer.Enabled = $true
                     $buttonFindComputer.Focus()
 
+                    # Draw V
                     HideMark $form $adComputerPictureName
+                    DrawVmark $form 127 135 "ADComputer"
                 } 
-                
                 else {
-                    Write-Warning "Failed to re-enable $($compName)."
+                    $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                    Write-Host "$($dateTime) | " -NoNewline
+                    Write-Host "Failed to re-enable " -NoNewline -ForegroundColor Red
+                    Write-Host "'$($compName)'."
+
+                    # Update statusbar message
+                    UpdateStatusBar "Failed to Re-Enable '$($compName)'." -color 'Red'
                     
+                    # Draw X
+                    HideMark $form $adComputerPictureName
+                    DrawXmark $form 130 140 "ADComputer" 
+
                     # Display a warning dialog box
                     [System.Windows.Forms.MessageBox]::Show("Failed to re-enable $($compName).", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
                     
@@ -426,9 +446,11 @@ $buttonReEnable.Add_Click({
 
                 # Show a green V checkmark near the textbox
                 HideMark $form $adComputerPictureName
+                DrawVmark $form 127 135 "ADComputer"
 
-                $buttonFindComputer.Enabled = $true
+                $buttonFindComputer.Enabled = $false
                 $buttonReEnable.Enabled = $false
+                $buttonMoveOU.Enabled = $true
                 $global:isComputer = $false
                 return $true
 
