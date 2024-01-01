@@ -51,7 +51,7 @@ function GeneratePassword() {
     [System.Windows.Forms.Clipboard]::SetText([System.Runtime.InteropServices.Marshal]::PtrToStringUni([System.Runtime.InteropServices.Marshal]::SecureStringToGlobalAllocUnicode($securePassword)))
 
     # Update statusbar message
-    UpdateStatusBar "Password generated for $($global:primaryUser.SamAccountName) & has been copied to the clipboard." -color 'Green'
+    UpdateStatusBar "Password generated for $($global:primaryUser.SamAccountName) & has been copied to the clipboard." -color 'White'
     
     # Display the generated password
     [System.Windows.Forms.MessageBox]::Show("Generated Password: $password`n`nThe password has been copied to the clipboard.", "Password Generated", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
@@ -75,7 +75,7 @@ function ResetPassword {
             Set-AdUser -Identity $global:primaryUser.SamAccountName -ChangePasswordAtLogon $false
 
             # Update statusbar message
-            UpdateStatusBar "Password reset for '$($global:primaryUser.SamAccountName)' completed." -color 'Green'
+            UpdateStatusBar "Password reset for '$($global:primaryUser.SamAccountName)' completed." -color 'White'
 
             # Log action
             LogScriptExecution -logPath $global:logFilePath -action "Password reset for '$($global:primaryUser.SamAccountName)' completed." -userName $env:USERNAME
@@ -119,7 +119,7 @@ function ManageResetPasswordValidationEvent {
                     LogScriptExecution -logPath $global:logFilePath -action "Password reset for user '$($userTextBox)'" -userName $env:USERNAME
 
                     # Update statusbar message
-                    UpdateStatusBar "Password for user '$($userTextBox)' has been reset." -color 'Green'
+                    UpdateStatusBar "Password for user '$($userTextBox)' has been reset." -color 'White'
 
                     # Display a summery information dialog box
                     [System.Windows.Forms.MessageBox]::Show("Password for user '$userTextBox' has been reset.", "Password Reset", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
@@ -176,7 +176,7 @@ Function HandleLockedOut {
         LogScriptExecution -logPath $logFilePath -action "$($global:primaryUser.SamAccountName) was unlocked." -userName $env:USERNAME
 
         # Update statusbar message
-        UpdateStatusBar "Account '$($global:primaryUser.SamAccountName)' has been unlocked." -color 'Green'
+        UpdateStatusBar "Account '$($global:primaryUser.SamAccountName)' has been unlocked." -color 'White'
 
         # Unlock the user account
         [System.Windows.Forms.MessageBox]::Show("User '$($global:primaryUser.SamAccountName)' has been unlocked.", "Account Unlocked", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
@@ -300,7 +300,7 @@ function CopyGroups {
     Write-Host ""
 
     # Update statusbar message
-    UpdateStatusBar "Copy Groups completed for user: '$($global:primaryUser.SamAccountName)'." -color 'Green'
+    UpdateStatusBar "Copy Groups completed for user: '$($global:primaryUser.SamAccountName)'." -color 'White'
 
     $global:buttonFindADUser.Enabled = $true
 }
@@ -363,7 +363,7 @@ function RemoveGroups($username) {
             }
         }
         # Update statusbar message
-        UpdateStatusBar "User '$($username)' has been removed from all groups." -color 'Green'
+        UpdateStatusBar "User '$($username)' has been removed from all groups." -color 'White'
         return $true
 
     } catch {
@@ -485,7 +485,7 @@ function ManageFindADUserEvent {
                 DrawVmark $form 125 47 "ADUsername"
 
                 # Update statusbar message
-                UpdateStatusBar "User account '$($global:textboxADUsername.Text)' is OK." -color 'Green'
+                UpdateStatusBar "User account '$($global:textboxADUsername.Text)' is OK." -color 'White'
     
                 # Manage buttons
                 $global:buttonGeneratePassword.Enabled = $true
@@ -584,7 +584,7 @@ function ManageFindComputerEvent {
         $global:buttonMoveOU.Focus()
 
         # Update statusbar message
-        UpdateStatusBar "Computer account '$($global:textboxADComputer.Text)' is OK." -color 'Green'
+        UpdateStatusBar "Computer account '$($global:textboxADComputer.Text)' is OK." -color 'White'
 
         return $true
     }

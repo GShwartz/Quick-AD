@@ -28,6 +28,9 @@ function PerformComputerActions($computerNames, $csvData) {
             Write-Host "'$($computerName)' " -NoNewline
             Write-Host "not found." -ForegroundColor Yellow
 
+            # Update statusbar message
+            UpdateStatusBar "'$($computerName)' not found." -color 'Red'
+
             $csvData[$i].Results = "Not Found"
             continue  # Skip to the next iteration
         }
@@ -41,6 +44,9 @@ function PerformComputerActions($computerNames, $csvData) {
                 Write-Host "'$($computerName)' " -NoNewline
                 Write-Host "is disabled." -ForegroundColor Yellow
 
+                # Update statusbar message
+                UpdateStatusBar "'$($computerName)' is disabled." -color 'Red'
+
                 # Confirm re-enable action with user
                 $confirmReEnable = [System.Windows.Forms.MessageBox]::Show("Computer '$($computer.Name)' is disabled. Re-Enable?", "Re-Enable", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question)
                 if ($confirmReEnable -eq [System.Windows.Forms.DialogResult]::Yes) {
@@ -51,6 +57,9 @@ function PerformComputerActions($computerNames, $csvData) {
                     Write-Host "'$($computer.Name)' " -NoNewline
                     Write-Host "re-enabled successfully." -ForegroundColor Green
 
+                    # Update statusbar message
+                    UpdateStatusBar "'$($computerName)' re-enabled successfully." -color 'White'
+
                     # Update the 'Disabled' value in the CSV to 'TRUE'
                     $csvData[$i].ReEnabled = "TRUE"
                 }
@@ -59,6 +68,9 @@ function PerformComputerActions($computerNames, $csvData) {
                     Write-Host "$($dateTime) | " -NoNewline
                     Write-Host "Re-Enable skipped on: " -NoNewline -ForegroundColor Yellow
                     Write-Host "'$($computer.Name)'."
+
+                    # Update statusbar message
+                    UpdateStatusBar "Re-Enable skipped on: '$($computerName)'." -color 'White'
 
                     $csvData[$i].ReEnabled = "FALSE"
                 }
@@ -71,6 +83,9 @@ function PerformComputerActions($computerNames, $csvData) {
                 Write-Host "Failed to enable " -NoNewline -ForegroundColor Red
                 Write-Host "'$($computer.Name)'."
                 Write-Host "$($_)" -ForegroundColor Red
+
+                # Update statusbar message
+                UpdateStatusBar "Failed to enable '$($computerName)'." -color 'Red'
 
                 # Update the 'Disabled' value in the CSV to 'FALSE'
                 $csvData[$i].ReEnabled = "FALSE"
@@ -89,6 +104,9 @@ function PerformComputerActions($computerNames, $csvData) {
             Write-Host "'$($computer.Name)' " -NoNewline
             Write-Host "is locked out." -ForegroundColor Yellow
 
+            # Update statusbar message
+            UpdateStatusBar "Computer account '$($computerName)' is locked out." -color 'DarkOrange'
+
             # Confirm re-enable action with user
             $confirmReEnable = [System.Windows.Forms.MessageBox]::Show("Computer '$($computer.Name)' is disabled. Re-Enable?", "Re-Enable", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question)
             if ($confirmReEnable -eq [System.Windows.Forms.DialogResult]::Yes) {
@@ -100,6 +118,9 @@ function PerformComputerActions($computerNames, $csvData) {
                 Write-Host "Computer account " -NoNewline -ForegroundColor Green
                 Write-Host "'$($computer.Name)' " -NoNewline
                 Write-Host "has been unlocked." -ForegroundColor Green
+
+                # Update statusbar message
+                UpdateStatusBar "Computer account '$($computerName)' has been unlocked." -color 'White'
 
                 $csvData[$i].Unlocked = "TRUE"
             }
@@ -135,6 +156,9 @@ function BrowseAndLoadCSV {
                 HideMark $global:form "ADComputer"
                 DrawXmark $global:form 210 235 "CSVPath"
 
+                # Update statusbar message
+                UpdateStatusBar "Error: Empty file path field." -color 'Red'
+
                 $global:textboxCSVFilePath.Text = $selectedFilePath
 
                 $global:buttonGeneratePassword.Enabled = $false
@@ -152,6 +176,9 @@ function BrowseAndLoadCSV {
                 HideMark $global:form "ADComputer"
                 DrawXmark $global:form 210 235 "CSVPath"
 
+                # Update statusbar message
+                UpdateStatusBar "File not found." -color 'Red'
+
                 $global:textboxCSVFilePath.Text = $selectedFilePath
                 
                 $global:buttonGeneratePassword.Enabled = $false
@@ -168,6 +195,9 @@ function BrowseAndLoadCSV {
                 if ($firstLine -match 'Username') {
                     # Log action
                     LogScriptExecution -logPath $global:logFilePath -action "Loaded users CSV: $($selectedFilePath)" -userName $env:USERNAME
+
+                    # Update statusbar message
+                    UpdateStatusBar "Loaded users CSV: $($selectedFilePath)" -color 'White'
 
                     $global:textboxADUsername.Text = ""
                     $global:textboxADComputer.Text = ""
@@ -220,7 +250,10 @@ function BrowseAndLoadCSV {
         
                     # Log action
                     LogScriptExecution -logPath $global:logFilePath -action "Loaded CSV: $($selectedFilePath)" -userName $env:USERNAME
-                        
+                    
+                    # Update statusbar message
+                    UpdateStatusBar "Loaded Computer CSV: $($selectedFilePath)" -color 'White'
+
                     $textboxADUsername.Text = ""
                     $textboxADComputer.Text = ""
 
@@ -249,6 +282,9 @@ function BrowseAndLoadCSV {
                     $global:buttonCopyGroups.Enabled = $false
                     $global:buttonMoveOU.Enabled = $false
 
+                    # Update statusbar message
+                    UpdateStatusBar "File or file data Error." -color 'Red'
+
                     # Draw X mark near the CSV filepath textbox
                     HideMark $global:form "CSVPath"
                     HideMark $global:form "ADUsername"
@@ -260,7 +296,12 @@ function BrowseAndLoadCSV {
                 }
         
             } else {
-                Write-Error "Invalid file format. Only CSV files are allowed."
+                $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                Write-Host "$($dateTime) | " -NoNewline
+                Write-Host "Invalid file format. Only CSV files are allowed." -ForegroundColor Red
+
+                # Update statusbar message
+                UpdateStatusBar "Invalid file format. Only CSV files are allowed." -color 'Red'
 
                 # Draw X mark near the CSV filepath textbox
                 HideMark $global:form "CSVPath"
@@ -289,6 +330,9 @@ function BrowseAndLoadCSV {
     } catch {
         # Log the start of script execution
         LogScriptExecution -logPath $global:logFilePath -action "Catch error: $($_.Exception.Message)" -userName $env:USERNAME
+
+        # Update statusbar message
+        UpdateStatusBar "Error: $($_.Exception.Message)." -color 'Red'
 
         $global:textboxCSVFilePath.Text = $selectedFilePath
 
@@ -530,7 +574,7 @@ function GenerateCSVPasswords($path) {
                     # Update console
                     $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
                     Write-Host "$($dateTime) | " -NoNewline
-                    write-host "User " -NoNewline -ForegroundColor Yellow
+                    Write-Host "User " -NoNewline -ForegroundColor Yellow
                     Write-Host "'$($username)' " -NoNewline -ForegroundColor White
                     Write-Host "not found." -ForegroundColor Yellow
 
@@ -541,18 +585,40 @@ function GenerateCSVPasswords($path) {
                 }
             } 
             catch {
-                Write-Error "An error occurred while processing user $username : $_"
+                $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                Write-Host "$($dateTime) | " -NoNewline
+                write-Host "An error occurred while processing user " -NoNewline -ForegroundColor Red
+                write-Host "'$($username)'. "
+                Write-Host "$($_)" -ForegroundColor Red
+
+                # Log action
+                LogScriptExecution -logPath $global:logFilePath -action "Error: $($_.Exception.Message)." -userName $env:USERNAME
+
+                # Update statusbar message
+                UpdateStatusBar "An error occurred while processing '$($username)'." -color 'Red'
             }
         }
 
         # Save the modified CSV data back to the file
         $csvData | Export-Csv -Path $path -NoTypeInformation
 
+        # Update statusbar message
+        UpdateStatusBar "Passwords have been generated successfully." -color 'White'
+
+        # Log action
+        LogScriptExecution -logPath $global:logFilePath -action "Passwords have been generated successfully." -userName $env:USERNAME
+
         # Open the CSV file
         Start-Process -FilePath $path
     } 
     catch {
         Write-Error "An error occurred while processing the CSV file: $_"
+
+        # Log action
+        LogScriptExecution -logPath $global:logFilePath -action "User '$($username)' not found." -userName $env:USERNAME
+
+        # Update statusbar message
+        UpdateStatusBar "Error  while processing the CSV file: $_." -color 'Red'
     }
 }
 
@@ -618,6 +684,9 @@ function ResetCSV {
             $global:buttonResetPassword.Enabled = $false
             $global:buttonGeneratePassword.Enabled = $false
 
+            # Log action
+            LogScriptExecution -logPath $global:logFilePath -action "Resetting passwords completed successfully." -userName $env:USERNAME
+
             # Clear the password cell in the csv file
             $clearPass = [System.Windows.Forms.MessageBox]::Show("Do you wish to clear the passwords from the csv?", "Clear Passwords", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question)
             if ($clearPass -eq [System.Windows.Forms.DialogResult]::Yes) {
@@ -628,6 +697,12 @@ function ResetCSV {
                 # Save the modified CSV data back to the file
                 $csvData | Export-Csv -Path $global:textboxCSVFilePath.Text -NoTypeInformation
                 
+                # Update statusbar message
+                UpdateStatusBar "Passwords cleared from the CSV file." -color 'White'
+
+                # Log action
+                LogScriptExecution -logPath $global:logFilePath -action "Passwords cleared from the CSV file." -userName $env:USERNAME
+
                 # Show Clear Password summery dialogbox
                 [System.Windows.Forms.MessageBox]::Show("Passwords cleared from the CSV file.", "Clear Passwords", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
                 
@@ -635,6 +710,9 @@ function ResetCSV {
                 $global:buttonResetPassword.Enabled = $false
                 $global:buttonCopyGroups.Enabled = $false
             }
+
+            # Update statusbar message
+            UpdateStatusBar "Resetting passwords completed successfully." -color 'White'
 
             # Open the CSV file
             Start-Process -FilePath $global:textboxCSVFilePath.Text
@@ -647,6 +725,13 @@ function ResetCSV {
             }
         catch {
             Write-Host "Error: $_"
+
+            # Update statusbar message
+            UpdateStatusBar "Error: $_" -color 'Red'
+
+            # Log action
+            LogScriptExecution -logPath $global:logFilePath -action "Error: $_" -userName $env:USERNAME
+
             return $false
         }
     } else {
@@ -764,6 +849,9 @@ function HandleMoveOUCSV($exampleDistinguishedName) {
     $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
     Write-Host "$($dateTime) | " -NoNewline 
     Write-Host "Relocation process completed." -ForegroundColor Green
+
+    # Update statusbar message
+    UpdateStatusBar "Relocation process completed successfully." -color 'White'
 
     # Open CSV file
     #Start-Process $csvPath

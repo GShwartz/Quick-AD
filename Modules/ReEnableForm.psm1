@@ -52,12 +52,18 @@ function ShowReEnableForm {
                 if ($userCheckup.Enabled -eq $true) {
                     # User is enabled, check if it's locked out
                     if (IsUserLockedOut $userCheckup.SamAccountName) {
+                        # Update statusbar message
+                        UpdateStatusBar "User '$exampleADuser' is locked-out." -color 'DarkOrange'
+
                         # User is locked out
                         $unlockAccountResult = [System.Windows.Forms.MessageBox]::Show("User '$exampleADuser' is locked. Do you want to unlock the account?", "User Locked", [System.Windows.Forms.MessageBoxButtons]::YesNoCancel, [System.Windows.Forms.MessageBoxIcon]::Question)
                         if ($unlockAccountResult -eq [System.Windows.Forms.DialogResult]::Yes) {
                             # Unlock the user account
                             Unlock-ADAccount -Identity $exampleADuser
                             
+                            # Update statusbar message
+                            UpdateStatusBar "User '$exampleADuser' has been unlocked." -color 'White'
+
                             # Display Summery dialog box
                             [System.Windows.Forms.MessageBox]::Show("User '$exampleADuser' has been unlocked.", "Account Unlocked", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
 
@@ -71,6 +77,9 @@ function ShowReEnableForm {
                             # Enable the Re-Enable & Cancel buttons
                             $buttonReEnableForm.Enabled = $true
                             $buttonCancelReEnable.Enabled = $true
+
+                            # Update statusbar message
+                            UpdateStatusBar "Unlocked skipped on user: '$exampleADuser'." -color 'DarkOrange'
 
                             # Log the start of script execution
                             LogScriptExecution -logPath $global:logFilePath -action "Cancel Unlock for '$($userCheckup.SamAccountName)'." -userName $env:USERNAME
@@ -114,6 +123,9 @@ function ShowReEnableForm {
                         
                         HideMark $global:form "ADUsername"
 
+                        # Update statusbar message
+                        UpdateStatusBar "User '$($global:primaryUser.SamAccountName)' has been re-enabled." -color 'White'
+
                         # Show Summery dialog box
                         [System.Windows.Forms.MessageBox]::Show("User '$($global:primaryUser.SamAccountName)' has been re-enabled.", "Information", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
                         
@@ -134,6 +146,9 @@ function ShowReEnableForm {
                     # Log action
                     LogScriptExecution -logPath $global:logFilePath -action "The user '$($userCheckup.SamAccountName)' is disabled." -userName $env:USERNAME
 
+                    # Update statusbar message
+                    UpdateStatusBar "The user '$($userCheckup.SamAccountName)' is disabled." -color 'Red'
+
                     # User is disabled
                     [System.Windows.Forms.MessageBox]::Show("User '$($userCheckup.SamAccountName)' is disabled.", "User Disabled", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
                     
@@ -146,6 +161,9 @@ function ShowReEnableForm {
                 }
 
             } else {
+                # Update statusbar message
+                UpdateStatusBar "The user '$($exampleADuser) was not found." -color 'Red'
+
                 $global:buttonFindADUser.Enabled = $false
                 [System.Windows.Forms.MessageBox]::Show("The user '$($exampleADuser) was not found.", "ShowReEnableForm: User Not Found", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
                 
@@ -157,6 +175,9 @@ function ShowReEnableForm {
             }
 
         } catch {
+            # Update statusbar message
+            UpdateStatusBar "Error: $($_.Exception.Message)." -color 'Red'
+
             # Handle any other errors that may occur
             [System.Windows.Forms.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
             

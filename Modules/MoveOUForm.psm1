@@ -1,16 +1,6 @@
 # Import local modules
 $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-# $csvHandlerModulePath = Join-Path $scriptDirectory "CsvHandler.psm1"
-# $loggerModulePath = Join-Path $scriptDirectory "Logger.psm1"
-# $adHandlerModulePath = Join-Path $scriptDirectory "ADHandler.psm1"
-# $buildFormModulePath = Join-Path $scriptDirectory "BuildForm.psm1"
-
-# Import-Module $csvHandlerModulePath -Force
-# Import-Module $loggerModulePath -Force
-# Import-Module $adHandlerModulePath -Force
-# Import-Module $buildFormModulePath -Force
-
 # Import local modules
 $modulePaths = @(
     "Logger",           # Handles logging
@@ -63,7 +53,7 @@ function HandleUser {
                 LogScriptExecution -logPath $logFilePath -action "'$($global:textboxADUsername.Text)' has been relocated to $($userCheckup.DistinguishedName)." -userName $env:USERNAME
 
                 # Update statusbar message
-                UpdateStatusBar "'$($global:textboxADUsername.Text)' has been relocated to $($userCheckup.DistinguishedName)." -color 'Green'
+                UpdateStatusBar "'$($global:textboxADUsername.Text)' has been relocated to '$($userCheckup.DistinguishedName)'." -color 'White'
 
                 # Close the Copy Groups form
                 $moveOUForm.Close()
@@ -144,7 +134,7 @@ function HandleComputer {
                 Write-Host "$($computer.DistinguishedName)"
 
                 # Update statusbar message
-                UpdateStatusBar "'$($global:primaryComputer.Name)' relocated successfully." -color 'Green'
+                UpdateStatusBar "'$($global:primaryComputer.Name)' relocated successfully." -color 'White'
 
                 # Show Summary dialog box
                 [System.Windows.Forms.MessageBox]::Show("'$($global:primaryComputer.Name)' relocated successfully.", "Move OU", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
@@ -248,7 +238,7 @@ function ShowMoveOUForm {
         try {
             if ([string]::IsNullOrEmpty($global:textboxADComputer.Text)) {
                 if (-not [string]::IsNullOrEmpty($textboxOUName.Text)) {
-                    # Fetch all OUs with the name 'Disabled' or containing 'Disabled'
+                    # Fetch OUs
                     $ouNames = Get-ADOrganizationalUnit -Filter {(Name -like $ouName)} -Properties Name
                     if ($null -ne $ouNames) {
                         # Create a form
@@ -286,7 +276,7 @@ function ShowMoveOUForm {
                                         Write-Host "$($selectedItem)"
 
                                         # Update statusbar message
-                                        UpdateStatusBar "User '$($oldPrimary.SamAccountName)' was relocated to $($selectedItem)" -color 'Green'
+                                        UpdateStatusBar "User '$($oldPrimary.SamAccountName)' was relocated to $($selectedItem)" -color 'White'
                                     }
                                 }
 
@@ -336,7 +326,7 @@ function ShowMoveOUForm {
                     HandleUser
                 }
             }
-            elseif ([string]::IsNullOrEmpty($global:textboxADUsername.Text) -and $global:isComputer) {
+            elseif ([string]::IsNullOrEmpty($global:textboxADUsername.Text)) {
                 if (-not [string]::IsNullOrEmpty($textboxOUName.Text)) {
                     # Fetch all OUs with the name 'Disabled' or containing 'Disabled'
                     $ouNames = Get-ADOrganizationalUnit -Filter {(Name -like $ouName)} -Properties Name
@@ -376,7 +366,7 @@ function ShowMoveOUForm {
                                         Write-Host "$($selectedItem)"
                                         
                                         # Update statusbar message
-                                        UpdateStatusBar "Computer '$($global:primaryComputer.Name)' was relocated to $($selectedItem)." -color 'Green'
+                                        UpdateStatusBar "Computer '$($global:primaryComputer.Name)' was relocated to $($selectedItem)." -color 'White'
 
                                         # Log action
                                         LogScriptExecution -logPath $logFilePath -action "Computer '$($global:primaryComputer.Name)' was relocated to $($selectedItem)" -userName $env:USERNAME

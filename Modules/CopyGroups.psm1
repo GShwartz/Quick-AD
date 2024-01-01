@@ -29,9 +29,16 @@ function ShowCopyGroupsForm {
             $exampleADuser = $textboxUsername.Text
             if ($exampleADuser -eq $global:primaryUser.SamAccountName) {
                 # Log action
-                LogScriptExecution -logPath $global:logFilePath -action "The user '$($exampleADuser) is the same as the primary." -userName $env:USERNAME
+                LogScriptExecution -logPath $global:logFilePath -action "The user '$($exampleADuser)' is the same as the primary." -userName $env:USERNAME
 
-                Write-Host "The user '$($exampleADuser) is the same as the primary. terminating." -ForegroundColor Red
+                $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                Write-Host "$($dateTime) | " -NoNewline
+                Write-Host "The user " -NoNewline -ForegroundColor Red
+                Write-Host "'$($exampleADuser)' " -NoNewline
+                Write-Host "is the same as the primary." -ForegroundColor Red
+
+                # Update statusbar message
+                UpdateStatusBar "The user '$($exampleADuser)' is the same as the primary." -color 'Red'
 
                 # Display Not-Found dialog
                 [System.Windows.Forms.MessageBox]::Show("The user '$($exampleADuser) is the same as the primary.", "Duplicated Entry", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
@@ -66,15 +73,29 @@ function ShowCopyGroupsForm {
                 # Log the start of script execution
                 LogScriptExecution -logPath $global:logFilePath -action "Groups have been copied from '$exampleADuser' to '$($global:primaryUser.SamAccountName)'." -userName $env:USERNAME
 
+                # Update statusbar message
+                UpdateStatusBar "Groups have been copied to '$($global:primaryUser.SamAccountName)'." -color 'White'
+
                 # Show Summary dialog box
                 [System.Windows.Forms.MessageBox]::Show("Groups have been copied to '$($global:primaryUser.SamAccountName)'.", "Copy Groups", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
             
                 # Close the Copy Groups form
                 $copyGroupsForm.Close()
 
-            } else {
+                return $true
+            } 
+            else {
                 # Log action
                 LogScriptExecution -logPath $global:logFilePath -action "The user '$($exampleADuser) was not found." -userName $env:USERNAME
+
+                # Update statusbar message
+                UpdateStatusBar "The user '$($exampleADuser) was not found." -color 'Red'
+
+                $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                Write-Host "$($dateTime) | " -NoNewline
+                Write-Host "The user " -NoNewline -ForegroundColor Red
+                Write-Host "'$($exampleADuser)' " -NoNewline
+                Write-Host "was not found." -ForegroundColor Red
 
                 # Display Not-Found dialog
                 [System.Windows.Forms.MessageBox]::Show("The user '$($exampleADuser) was not found.", "User Not Found", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
@@ -82,17 +103,21 @@ function ShowCopyGroupsForm {
                 # Disable the Copy Groups button and enable the Cancel button
                 $buttonCopy.Enabled = $false
                 $buttonCancelCopy.Enabled = $true
+                return $false
             }
-
         } catch {
             # Log action
             LogScriptExecution -logPath $global:logFilePath -action "Error: $($_.Exception.Message)" -userName $env:USERNAME
+
+            # Update statusbar message
+            UpdateStatusBar "Error: $($_.Exception.Message)" -color 'Red'
 
             # Disable the Copy Groups button and close the form
             $buttonCopy.Enabled = $false
             $copyGroupsForm.Close()
             
             Write-Error "$($_)"
+            return $false
         }
     })
 
