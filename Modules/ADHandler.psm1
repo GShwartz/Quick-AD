@@ -13,12 +13,19 @@ Import-Module $visualsFileName -Force
 
 # Function to generate a random 6-digit number without consecutive or repeated digits
 function GenerateRandomNumber {
+    param (
+        [int]$totalNum = 6
+    )
+
+    $minValue = [math]::Pow(10, $totalNum - 1)
+    $maxValue = [math]::Pow(10, $totalNum) - 1
+
     do {
-        $random = Get-Random -Minimum 100000 -Maximum 999999
+        $random = Get-Random -Minimum $minValue -Maximum $maxValue
         $randomString = $random.ToString()
         $valid = $true
 
-        for ($i = 0; $i -lt 5; $i++) {
+        for ($i = 0; $i -lt $totalNum - 1; $i++) {
             if ($randomString[$i] -eq $randomString[$i + 1]) {
                 $valid = $false
                 break
@@ -26,16 +33,21 @@ function GenerateRandomNumber {
         }
     } until ($valid)
 
-    return $random
+    $result = New-Object -TypeName System.Text.StringBuilder
+    for ($i = 0; $i -lt $totalNum; $i++) {
+        [void]$result.Append($randomString[$i])
+    }
+
+    return $result.ToString()
 }
 
 # Function to generate a random password based on initials and a random special character
-function GeneratePassword() {
+function GeneratePassword($total) {
     # Extract the initials from the AD user account
     $initials = ($global:primaryUser.GivenName.Substring(0, 1).ToUpper()) + ($global:primaryUser.Surname.Substring(0, 1).ToLower())
     
     # Generate a random 6 digit number
-    $randomNumber = GenerateRandomNumber
+    $randomNumber = GenerateRandomNumber -totalNum $total
 
     # Define a list of special characters
     $specialCharacters = '!', '@', '#', '$'
@@ -81,8 +93,8 @@ function ResetPassword {
             LogScriptExecution -logPath $global:logFilePath -action "Password reset for '$($global:primaryUser.SamAccountName)' completed." -userName $env:USERNAME
 
             return $true
-
-        } catch {
+        } 
+        catch {
             [System.Windows.Forms.MessageBox]::Show("Error while resetting the password for user '$($global:primary.SamAccountName)': $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
             
             # Update statusbar message
@@ -94,7 +106,6 @@ function ResetPassword {
             return $false
         }
     }
-
     else {
         # Update statusbar message
         UpdateStatusBar "AD user is missing." -color 'Red'

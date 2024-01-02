@@ -1,3 +1,13 @@
+# Get the directory of the script file
+$scriptDirectory = [System.IO.Path]::GetDirectoryName($MyInvocation.MyCommand.Definition)
+$passBuilderModuleFileName = "PasswordBuilder.psm1"
+
+# Combine the script directory and file names to get path
+$moduleFileName = Join-Path -Path $scriptDirectory -ChildPath $passBuilderModuleFileName
+
+# Import Module
+Import-Module $moduleFileName -Force
+
 # Function to create the About window
 function ShowAboutWindow {
     $aboutForm = New-Object System.Windows.Forms.Form
@@ -52,6 +62,12 @@ function CreateMenuStrip {
 
     # File menu
     $fileMenu = $menuStrip.Items.Add("File")
+    $settingsMenuItem = $fileMenu.DropDownItems.Add("Settings")
+    $settingsMenuItem.Add_Click({
+        Write-Host "Work in progress."
+        # SetPasswordStrengt
+    })
+
     $exitMenuItem = $fileMenu.DropDownItems.Add("Exit")
     $exitMenuItem.Add_Click({
         # Exit the application
