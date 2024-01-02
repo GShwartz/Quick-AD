@@ -46,9 +46,9 @@ function ShowAboutWindow {
 function CreateMenuStrip {
     # Create a top menu strip
     $menuStrip = New-Object System.Windows.Forms.MenuStrip
-    $menuStrip.Height = 8
-    $menuStrip.BackColor = [System.Drawing.Color]::LightGray
-    $menuStrip.Padding = New-Object System.Windows.Forms.Padding(1)  # Padding for the border effect
+    $menuStrip.Height = 4
+    $menuStrip.BackColor = [System.Drawing.Color]::Wheat
+    $menuStrip.Padding = New-Object System.Windows.Forms.Padding(1)
 
     # File menu
     $fileMenu = $menuStrip.Items.Add("File")

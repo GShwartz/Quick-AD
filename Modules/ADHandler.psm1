@@ -51,7 +51,7 @@ function GeneratePassword() {
     [System.Windows.Forms.Clipboard]::SetText([System.Runtime.InteropServices.Marshal]::PtrToStringUni([System.Runtime.InteropServices.Marshal]::SecureStringToGlobalAllocUnicode($securePassword)))
 
     # Update statusbar message
-    UpdateStatusBar "Password generated for $($global:primaryUser.SamAccountName) & has been copied to the clipboard." -color 'White'
+    UpdateStatusBar "Password generated for $($global:primaryUser.SamAccountName) & has been copied to the clipboard." -color 'Black'
     
     # Display the generated password
     [System.Windows.Forms.MessageBox]::Show("Generated Password: $password`n`nThe password has been copied to the clipboard.", "Password Generated", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
@@ -75,7 +75,7 @@ function ResetPassword {
             Set-AdUser -Identity $global:primaryUser.SamAccountName -ChangePasswordAtLogon $false
 
             # Update statusbar message
-            UpdateStatusBar "Password reset for '$($global:primaryUser.SamAccountName)' completed." -color 'White'
+            UpdateStatusBar "Password reset for '$($global:primaryUser.SamAccountName)' completed." -color 'Black'
 
             # Log action
             LogScriptExecution -logPath $global:logFilePath -action "Password reset for '$($global:primaryUser.SamAccountName)' completed." -userName $env:USERNAME
@@ -119,7 +119,7 @@ function ManageResetPasswordValidationEvent {
                     LogScriptExecution -logPath $global:logFilePath -action "Password reset for user '$($userTextBox)'" -userName $env:USERNAME
 
                     # Update statusbar message
-                    UpdateStatusBar "Password for user '$($userTextBox)' has been reset." -color 'White'
+                    UpdateStatusBar "Password for user '$($userTextBox)' has been reset." -color 'Black'
 
                     # Display a summery information dialog box
                     [System.Windows.Forms.MessageBox]::Show("Password for user '$userTextBox' has been reset.", "Password Reset", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
@@ -176,7 +176,7 @@ Function HandleLockedOut {
         LogScriptExecution -logPath $logFilePath -action "$($global:primaryUser.SamAccountName) was unlocked." -userName $env:USERNAME
 
         # Update statusbar message
-        UpdateStatusBar "Account '$($global:primaryUser.SamAccountName)' has been unlocked." -color 'White'
+        UpdateStatusBar "Account '$($global:primaryUser.SamAccountName)' has been unlocked." -color 'Black'
 
         # Unlock the user account
         [System.Windows.Forms.MessageBox]::Show("User '$($global:primaryUser.SamAccountName)' has been unlocked.", "Account Unlocked", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
@@ -204,16 +204,30 @@ function CopyGroups {
         [string]$exampleADuser
     )
 
-    $userGroups = Get-AdPrincipalGroupMembership -Identity $exampleADuser |
-        Select-Object -Property Name, SamAccountName |
-        ForEach-Object {
-            $_.Name
-            $_.SamAccountName
-        } | Select-Object -Unique
+    try {
+        $userGroups = Get-AdPrincipalGroupMembership -Identity $exampleADuser |
+            Select-Object -Property Name, SamAccountName |
+            ForEach-Object {
+                $_.Name
+                $_.SamAccountName
+            } | Select-Object -Unique
+    }
+    catch {
+        Write-Host "An error occurred while retrieving group membership: $_" -ForegroundColor Red
+        return $false, $_.Exception.Message
+    }
     
     # Filter out "Domain Users"
     $userGroups = $userGroups | Where-Object { $_ -ne 'Domain Users' }
     
+    if ($userGroups.Count -eq 0) {
+        $message = "Example user is not a member of any group."
+
+        # Update statusbar message
+        UpdateStatusBar "$($message)" -color 'Red'
+        return $false, $message
+    }
+
     $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
     Write-Host ""
     for ($i = 1; $i -le 40; $i++) {
@@ -231,15 +245,6 @@ function CopyGroups {
     }
     Write-Host ""
 
-    if ($userGroups.Count -eq 0) {
-        Write-Host "$($dateTime) | " -NoNewline
-        Write-Host "No Groups." -ForegroundColor Yellow
-
-        # Update statusbar message
-        UpdateStatusBar "User '$($global:primaryUser.SamAccountName)' is not a member of any group." -color 'DarkOrange'
-        return $false
-    }
-    
     # Add the user to the groups of the specified $adUsername
     foreach ($group in $userGroups) {
         try {
@@ -265,8 +270,8 @@ function CopyGroups {
             if ($_.Exception.Message -match "specified user account is already a member of the specified group") {
                 # Set a timer to avoid request flooding | DOS
                 Start-Sleep -Milliseconds 300
-
-            } else {
+            } 
+            else {
                 # Log action
                 LogScriptExecution -logPath $global:logFilePath -action "$($_.Exception.Message)" -userName $env:USERNAME
 
@@ -274,15 +279,15 @@ function CopyGroups {
                 UpdateStatusBar "An error occured. Check the log." -color 'Red'
 
                 # Handle other errors (if needed).
-                Write-Error "An error occurred: $($_.Exception.Message)"
+                Write-Host "An error occurred: $($_.Exception.Message)" -ForegroundColor Red
             }
         }
     }
 
     # Retrieve and print the groups the user is a member of (only group names)
     $userGroups = Get-ADUser -Identity $global:primaryUser.SamAccountName -Properties MemberOf | 
-    Select-Object -ExpandProperty MemberOf | 
-    ForEach-Object { (Get-ADGroup $_).Name }
+        Select-Object -ExpandProperty MemberOf | 
+        ForEach-Object { (Get-ADGroup $_).Name }
 
     $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
     Write-Host ""
@@ -299,10 +304,12 @@ function CopyGroups {
     }
     Write-Host ""
 
+    $message = "Copy Groups completed for user: '$($global:primaryUser.SamAccountName)'."
     # Update statusbar message
-    UpdateStatusBar "Copy Groups completed for user: '$($global:primaryUser.SamAccountName)'." -color 'White'
+    UpdateStatusBar "$($message)" -color 'Black'
 
     $global:buttonFindADUser.Enabled = $true
+    return $true, $message
 }
 
 # Function to remove groups from user
@@ -363,7 +370,7 @@ function RemoveGroups($username) {
             }
         }
         # Update statusbar message
-        UpdateStatusBar "User '$($username)' has been removed from all groups." -color 'White'
+        UpdateStatusBar "User '$($username)' has been removed from all groups." -color 'Black'
         return $true
 
     } catch {
@@ -485,7 +492,7 @@ function ManageFindADUserEvent {
                 DrawVmark $form 125 47 "ADUsername"
 
                 # Update statusbar message
-                UpdateStatusBar "User account '$($global:textboxADUsername.Text)' is OK." -color 'White'
+                UpdateStatusBar "User account '$($global:textboxADUsername.Text)' is OK." -color 'Black'
     
                 # Manage buttons
                 $global:buttonGeneratePassword.Enabled = $true
@@ -584,7 +591,7 @@ function ManageFindComputerEvent {
         $global:buttonMoveOU.Focus()
 
         # Update statusbar message
-        UpdateStatusBar "Computer account '$($global:textboxADComputer.Text)' is OK." -color 'White'
+        UpdateStatusBar "Computer account '$($global:textboxADComputer.Text)' is OK." -color 'Black'
 
         return $true
     }

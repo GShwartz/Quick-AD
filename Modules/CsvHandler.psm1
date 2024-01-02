@@ -58,7 +58,7 @@ function PerformComputerActions($computerNames, $csvData) {
                     Write-Host "re-enabled successfully." -ForegroundColor Green
 
                     # Update statusbar message
-                    UpdateStatusBar "'$($computerName)' re-enabled successfully." -color 'White'
+                    UpdateStatusBar "'$($computerName)' re-enabled successfully." -color 'Black'
 
                     # Update the 'Disabled' value in the CSV to 'TRUE'
                     $csvData[$i].ReEnabled = "TRUE"
@@ -70,7 +70,7 @@ function PerformComputerActions($computerNames, $csvData) {
                     Write-Host "'$($computer.Name)'."
 
                     # Update statusbar message
-                    UpdateStatusBar "Re-Enable skipped on: '$($computerName)'." -color 'White'
+                    UpdateStatusBar "Re-Enable skipped on: '$($computerName)'." -color 'Black'
 
                     $csvData[$i].ReEnabled = "FALSE"
                 }
@@ -120,7 +120,7 @@ function PerformComputerActions($computerNames, $csvData) {
                 Write-Host "has been unlocked." -ForegroundColor Green
 
                 # Update statusbar message
-                UpdateStatusBar "Computer account '$($computerName)' has been unlocked." -color 'White'
+                UpdateStatusBar "Computer account '$($computerName)' has been unlocked." -color 'Black'
 
                 $csvData[$i].Unlocked = "TRUE"
             }
@@ -160,9 +160,9 @@ function BrowseAndLoadCSV {
                 UpdateStatusBar "Error: Empty file path field." -color 'Red'
 
                 $global:textboxCSVFilePath.Text = $selectedFilePath
-
                 $global:buttonGeneratePassword.Enabled = $false
                 $global:buttonCopyGroups.Enabled = $false
+                $global:buttonRemoveGroups.Enabled = $false
                 $global:buttonMoveOU.Enabled = $false
 
                 return $false
@@ -180,9 +180,9 @@ function BrowseAndLoadCSV {
                 UpdateStatusBar "File not found." -color 'Red'
 
                 $global:textboxCSVFilePath.Text = $selectedFilePath
-                
                 $global:buttonGeneratePassword.Enabled = $false
                 $global:buttonCopyGroups.Enabled = $false
+                $global:buttonRemoveGroups.Enabled = $false
                 $global:buttonMoveOU.Enabled = $false
 
                 return $false
@@ -197,7 +197,7 @@ function BrowseAndLoadCSV {
                     LogScriptExecution -logPath $global:logFilePath -action "Loaded users CSV: $($selectedFilePath)" -userName $env:USERNAME
 
                     # Update statusbar message
-                    UpdateStatusBar "Loaded users CSV: $($selectedFilePath)" -color 'White'
+                    UpdateStatusBar "Loaded users CSV: $($selectedFilePath)" -color 'Black'
 
                     $global:textboxADUsername.Text = ""
                     $global:textboxADComputer.Text = ""
@@ -213,6 +213,7 @@ function BrowseAndLoadCSV {
                     
                     $global:buttonGeneratePassword.Enabled = $true
                     $global:buttonCopyGroups.Enabled = $false
+                    $global:buttonRemoveGroups.Enabled = $true
                     $global:buttonMoveOU.Enabled = $true
                     $global:isCSV = $true
 
@@ -252,7 +253,7 @@ function BrowseAndLoadCSV {
                     LogScriptExecution -logPath $global:logFilePath -action "Loaded CSV: $($selectedFilePath)" -userName $env:USERNAME
                     
                     # Update statusbar message
-                    UpdateStatusBar "Loaded Computer CSV: $($selectedFilePath)" -color 'White'
+                    UpdateStatusBar "Loaded Computer CSV: $($selectedFilePath)" -color 'Black'
 
                     $textboxADUsername.Text = ""
                     $textboxADComputer.Text = ""
@@ -603,7 +604,7 @@ function GenerateCSVPasswords($path) {
         $csvData | Export-Csv -Path $path -NoTypeInformation
 
         # Update statusbar message
-        UpdateStatusBar "Passwords have been generated successfully." -color 'White'
+        UpdateStatusBar "Passwords have been generated successfully." -color 'Black'
 
         # Log action
         LogScriptExecution -logPath $global:logFilePath -action "Passwords have been generated successfully." -userName $env:USERNAME
@@ -698,7 +699,7 @@ function ResetCSV {
                 $csvData | Export-Csv -Path $global:textboxCSVFilePath.Text -NoTypeInformation
                 
                 # Update statusbar message
-                UpdateStatusBar "Passwords cleared from the CSV file." -color 'White'
+                UpdateStatusBar "Passwords cleared from the CSV file." -color 'Black'
 
                 # Log action
                 LogScriptExecution -logPath $global:logFilePath -action "Passwords cleared from the CSV file." -userName $env:USERNAME
@@ -712,7 +713,7 @@ function ResetCSV {
             }
 
             # Update statusbar message
-            UpdateStatusBar "Resetting passwords completed successfully." -color 'White'
+            UpdateStatusBar "Resetting passwords completed successfully." -color 'Black'
 
             # Open the CSV file
             Start-Process -FilePath $global:textboxCSVFilePath.Text
@@ -851,8 +852,107 @@ function HandleMoveOUCSV($exampleDistinguishedName) {
     Write-Host "Relocation process completed." -ForegroundColor Green
 
     # Update statusbar message
-    UpdateStatusBar "Relocation process completed successfully." -color 'White'
+    UpdateStatusBar "Relocation process completed successfully." -color 'Black'
 
     # Open CSV file
     #Start-Process $csvPath
+}
+
+function ProccessCSVGroupRemoval {
+    $csvPath = $textboxCSVFilePath.Text
+    $csvData = Import-Csv -Path $textboxCSVFilePath.Text
+
+    foreach ($row in $csvData) {
+        # Access the "Username" column from each row
+        $username = $row.Username
+        if (-not [string]::IsNullOrEmpty($username)) {
+            # Get the AD user parameters
+            $user = FindADUser $username
+
+            # Check if the user was found
+            if ($null -ne $user) {
+                if ($user.Enabled) {
+                    # Get the user's groups
+                    $userGroups = Get-ADUser -Identity $username -Properties MemberOf | Select-Object -ExpandProperty MemberOf
+                    if ($userGroups.Count -eq 0) {
+                        $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                        Write-Host "$($dateTime) | " -NoNewline
+                        Write-Host "User " -NoNewline -ForegroundColor Yellow
+                        Write-Host "'$($username)' " -NoNewline
+                        Write-Host "is not a member of any group." -ForegroundColor Yellow
+
+                        # Update statusbar message
+                        UpdateStatusBar "The user account '$($username)' is not a member of any group." -color 'Red'
+                    }
+
+                    # Filter out the "Domain Users" group
+                    $groupsToRemove = $userGroups | Where-Object { $_ -ne "Domain Users" }
+
+                    # Remove the user from each group
+                    foreach ($group in $groupsToRemove) {
+                        try {
+                            Remove-ADGroupMember -Identity $group -Members $username -Confirm:$false -ErrorAction Stop
+                            $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                            Write-Host "$($dateTime) | " -NoNewline
+                            Write-Host "User " -NoNewline -ForegroundColor Green
+                            Write-Host "'$($username)' " -NoNewline
+                            Write-Host "has been removed from " -NoNewline -ForegroundColor Green
+                            Write-Host "$($group)."
+
+                            # Log action
+                            LogScriptExecution -logPath $logFilePath -action "$($username) has been removed from $($group)." -userName $env:USERNAME
+
+                            Start-Sleep -Milliseconds 300
+
+                        } catch {
+                            $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                            Write-Host "$($dateTime) | " -NoNewline
+                            Write-Host "Error removing user " -NoNewline -ForegroundColor Red
+                            Write-Host "'$($username)'" -NoNewline
+                            Write-Host "from group " -NoNewline -ForegroundColor Red
+                            Write-Host "'$($group)'."
+                            Write-Host "$_" -ForegroundColor Red
+                            
+                            # Update statusbar message
+                            UpdateStatusBar "Error removing user '$($username) from group $($group). Check Log." -color 'Red'
+
+                            # Log action
+                            LogScriptExecution -logPath $logFilePath -action "Error removing user $username from group $group. $_." -userName $env:USERNAME
+
+                            # Skip to the next entry
+                            continue
+                        }
+                    }
+                    Start-Sleep -Milliseconds 300
+                }
+                else {
+                    $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                    Write-Host "$($dateTime) | " -NoNewline
+                    Write-Host "User " -NoNewline -ForegroundColor Yellow
+                    Write-Host "'$($username)' " -NoNewline
+                    Write-Host "is disabled. skipping... " -ForegroundColor Yellow
+
+                    # Log action
+                    LogScriptExecution -logPath $logFilePath -action "User '$($username)' is disabled. skipping..." -userName $env:USERNAME
+
+                    Start-Sleep -Milliseconds 300
+                    continue
+                }
+            }
+        }
+    }
+    # Log action
+    LogScriptExecution -logPath $logFilePath -action "Group removal for CSV users completed successfully." -userName $env:USERNAME
+
+    $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+    Write-Host "$($dateTime) | " -NoNewline
+    Write-Host "Group removal for CSV users completed successfully." -ForegroundColor Green
+
+    # Update statusbar message
+    UpdateStatusBar "Group removal for CSV users completed successfully." -color 'Black'
+
+    # Show the User is disabled dialog box
+    [System.Windows.Forms.MessageBox]::Show("Group removal for CSV users completed successfully.", "CSV Group Removal", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+
+    $buttonRemoveGroups.Enabled = $false
 }

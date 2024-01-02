@@ -63,26 +63,47 @@ function ShowCopyGroupsForm {
 
             if ($null -ne $userCheckup) {
                 # Perform the copy groups action
-                CopyGroups -adUsername $global:primaryUser.SamAccountName -exampleADuser $exampleADuser
+                $isCopied, $message = CopyGroups -adUsername $global:primaryUser.SamAccountName -exampleADuser $exampleADuser
+                if (-not $isCopied) {
+                    # Log the start of script execution
+                    LogScriptExecution -logPath $global:logFilePath -action "Failed to copy groups from $($exampleADuser). $($message)" -userName $env:USERNAME
+
+                    $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                    Write-Host "$($dateTime) | " -NoNewline
+                    Write-Host "Failed to copy groups from " -NoNewline -ForegroundColor Red
+                    Write-Host "'$($exampleADuser)'. " -NoNewline
+                    Write-Host "$($message)"
+
+                    # Update statusbar message
+                    UpdateStatusBar "Failed to copy groups from $($exampleADuser): $($message)" -color 'DarkRed'
+
+                    # Show Summary dialog box
+                    [System.Windows.Forms.MessageBox]::Show("Failed to copy groups from $($exampleADuser).", "Copy Groups", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+
+                    $buttonCancelCopy.Enabled = $true
+                    return $false
+                }
                 
                 # Enable buttons
                 $global:buttonFindADUser.Enabled = $false
                 $global:buttonGeneratePassword.Enabled = $true
                 $global:buttonCopyGroups.Enabled = $true
                 
+                $message = "Groups have been copied from '$exampleADuser' to '$($global:primaryUser.SamAccountName)'."
+
                 # Log the start of script execution
-                LogScriptExecution -logPath $global:logFilePath -action "Groups have been copied from '$exampleADuser' to '$($global:primaryUser.SamAccountName)'." -userName $env:USERNAME
+                LogScriptExecution -logPath $global:logFilePath -action "$($message)" -userName $env:USERNAME
 
                 # Update statusbar message
-                UpdateStatusBar "Groups have been copied to '$($global:primaryUser.SamAccountName)'." -color 'White'
+                UpdateStatusBar "$($message)" -color 'Black'
 
                 # Show Summary dialog box
-                [System.Windows.Forms.MessageBox]::Show("Groups have been copied to '$($global:primaryUser.SamAccountName)'.", "Copy Groups", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-            
+                [System.Windows.Forms.MessageBox]::Show("$($message)", "Copy Groups", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                
                 # Close the Copy Groups form
                 $copyGroupsForm.Close()
 
-                return $true
+                return $true, $message
             } 
             else {
                 # Log action
@@ -105,7 +126,8 @@ function ShowCopyGroupsForm {
                 $buttonCancelCopy.Enabled = $true
                 return $false
             }
-        } catch {
+        } 
+        catch {
             # Log action
             LogScriptExecution -logPath $global:logFilePath -action "Error: $($_.Exception.Message)" -userName $env:USERNAME
 

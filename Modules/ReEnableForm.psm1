@@ -62,7 +62,7 @@ function ShowReEnableForm {
                             Unlock-ADAccount -Identity $exampleADuser
                             
                             # Update statusbar message
-                            UpdateStatusBar "User '$exampleADuser' has been unlocked." -color 'White'
+                            UpdateStatusBar "User '$exampleADuser' has been unlocked." -color 'Black'
 
                             # Display Summery dialog box
                             [System.Windows.Forms.MessageBox]::Show("User '$exampleADuser' has been unlocked.", "Account Unlocked", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
@@ -124,7 +124,7 @@ function ShowReEnableForm {
                         HideMark $global:form "ADUsername"
 
                         # Update statusbar message
-                        UpdateStatusBar "User '$($global:primaryUser.SamAccountName)' has been re-enabled." -color 'White'
+                        UpdateStatusBar "User '$($global:primaryUser.SamAccountName)' has been re-enabled." -color 'Black'
 
                         # Show Summery dialog box
                         [System.Windows.Forms.MessageBox]::Show("User '$($global:primaryUser.SamAccountName)' has been re-enabled.", "Information", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)

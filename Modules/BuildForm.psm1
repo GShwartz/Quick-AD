@@ -10,6 +10,7 @@ function CreateCanvas {
     $form.Text = $formTitle
     $form.Size = New-Object System.Drawing.Size($x, $y)
     $form.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
+    #$form.BackColor = [System.Drawing.Color]::White
     $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedSingle
 
     return $form
@@ -66,6 +67,8 @@ function CreateButton {
     $button.Location = New-Object System.Drawing.Point($x, $y)
     $button.Size = New-Object System.Drawing.Size($width, $height)
     $button.Text = $text
+    #$button.ForeColor = [System.Drawing.Color]::Black
+    #$button.BackColor = [System.Drawing.Color]::Gray
     $button.Enabled = $enabled
 
     return $button
@@ -137,7 +140,7 @@ function CreateStatusBar {
     $statusBarTextBox.Anchor = [System.Windows.Forms.AnchorStyles]::Bottom -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right
     $statusBarTextBox.Text = "Ready"
     $statusBarTextBox.ForeColor = [System.Drawing.Color]::Black
-    $statusBarTextBox.BackColor = [System.Drawing.Color]::Black
+    $statusBarTextBox.BackColor = [System.Drawing.Color]::Wheat
     $statusBarTextBox.BorderStyle = [System.Windows.Forms.BorderStyle]::FixedSingle
     $statusBarTextBox.ScrollBars = [System.Windows.Forms.ScrollBars]::Horizontal
     $statusBarTextBox.ReadOnly = $true
@@ -147,5 +150,6 @@ function CreateStatusBar {
     $statusBar.Panels.Add((New-Object System.Windows.Forms.StatusBarPanel))
     $statusBar.Controls.Add($statusBarTextBox)
 }
+
 
 

@@ -53,7 +53,7 @@ function HandleUser {
                 LogScriptExecution -logPath $logFilePath -action "'$($global:textboxADUsername.Text)' has been relocated to $($userCheckup.DistinguishedName)." -userName $env:USERNAME
 
                 # Update statusbar message
-                UpdateStatusBar "'$($global:textboxADUsername.Text)' has been relocated to '$($userCheckup.DistinguishedName)'." -color 'White'
+                UpdateStatusBar "'$($global:textboxADUsername.Text)' has been relocated to '$($userCheckup.DistinguishedName)'." -color 'Black'
 
                 # Close the Copy Groups form
                 $moveOUForm.Close()
@@ -134,7 +134,7 @@ function HandleComputer {
                 Write-Host "$($computer.DistinguishedName)"
 
                 # Update statusbar message
-                UpdateStatusBar "'$($global:primaryComputer.Name)' relocated successfully." -color 'White'
+                UpdateStatusBar "'$($global:primaryComputer.Name)' relocated successfully." -color 'Black'
 
                 # Show Summary dialog box
                 [System.Windows.Forms.MessageBox]::Show("'$($global:primaryComputer.Name)' relocated successfully.", "Move OU", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
@@ -276,7 +276,7 @@ function ShowMoveOUForm {
                                         Write-Host "$($selectedItem)"
 
                                         # Update statusbar message
-                                        UpdateStatusBar "User '$($oldPrimary.SamAccountName)' was relocated to $($selectedItem)" -color 'White'
+                                        UpdateStatusBar "User '$($oldPrimary.SamAccountName)' was relocated to $($selectedItem)" -color 'Black'
                                     }
                                 }
 
@@ -366,7 +366,7 @@ function ShowMoveOUForm {
                                         Write-Host "$($selectedItem)"
                                         
                                         # Update statusbar message
-                                        UpdateStatusBar "Computer '$($global:primaryComputer.Name)' was relocated to $($selectedItem)." -color 'White'
+                                        UpdateStatusBar "Computer '$($global:primaryComputer.Name)' was relocated to $($selectedItem)." -color 'Black'
 
                                         # Log action
                                         LogScriptExecution -logPath $logFilePath -action "Computer '$($global:primaryComputer.Name)' was relocated to $($selectedItem)" -userName $env:USERNAME

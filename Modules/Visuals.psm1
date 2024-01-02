@@ -201,3 +201,4 @@ function UpdateStatusBar($message, $color) {
 }
 
 
+
