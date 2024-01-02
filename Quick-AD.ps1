@@ -1,4 +1,5 @@
-﻿# 3. Fix CopyGroups showing success if no groups
+﻿# 1. Complete Copy Groups for CSV users.
+# 2. Add a settings option to change the password's strength.
 
 
 # Import form modules
@@ -26,7 +27,8 @@ $modulePaths = @(
     "CsvHandler",       # Handles CSV file operations
     "ADHandler",        # Handles Active Directory operations
     "BuildForm",        # Builds and configures forms
-    "MenuStrip"         # Builds the top menu
+    "MenuStrip",        # Builds the top menu
+    "PasswordBuilder"
 )
 
 foreach ($moduleName in $modulePaths) {
@@ -63,19 +65,22 @@ function ManageFormClose() {
 }
 
 function Main {
-    # Log Action
-    LogScriptExecution -logPath $logFilePath -action ("= " * 35) -userName $env:USERNAME
-    LogScriptExecution -logPath $logFilePath -action ("{0,42}" -f "Script Start") -userName $env:USERNAME
-    LogScriptExecution -logPath $logFilePath -action ("= " * 35) -userName $env:USERNAME
-
     # Define vars
-    $global:version = "1.0.0"
-    $global:primaryUser = $null 
-    $global:primaryComputer = $null
-    $global:isComputer = $false
-    $global:isCSV = $false
-    $global:statusBarMessage = $null
+    $global:version = "1.0.0"           # Application version
+    $global:primaryUser = $null         # Store information about the primary user
+    $global:primaryComputer = $null     # Store information about the primary computer
+    $global:isComputer = $false         # Flag indicating whether the primary user is a computer
+    $global:isCSV = $false              # Flag indicating whether the input is a CSV file
+    $global:totalDigits = 6             # Default number of digits for random number generation
+    $global:statusBarMessage = $null    # Message for the status bar
 
+    $global:passDefaultUpperNum = 1
+    $global:passDefaultLowerNum = 1
+    $global:passDefaultSpecialsNum = 1
+    $global:passDefaultDigitsNum = 1
+    $global:passDefaultIncludeInitials = $true
+
+    # Set names for visual validations
     $adUserNamePictureName = "ADUsername"
     $adComputerPictureName = "ADComputer"
     $csvPathPictureName = "CSVPath"
@@ -142,12 +147,8 @@ function Main {
         }
 
         if (-not [string]::IsNullOrEmpty($global:primaryUser) -and -not [string]::IsNullOrEmpty($textboxADUsername.Text)) {$buttonFindComputer.Enabled = $false}
-
-        if (-not [string]::IsNullOrEmpty($global:primaryUser) -or -not [string]::IsNullOrEmpty($textboxCSVFilePath.Text)) {$buttonGeneratePassword.Enabled = $true}
-        else {$buttonGeneratePassword.Enabled = $false}
-
-        if ([string]::IsNullOrEmpty($textboxADUsername.Text)) {$buttonGeneratePassword.Enabled = $false}
-
+        if (-not $buttonGeneratePassword.Enabled) {$buttonGeneratePassword.Enabled = $false} else {$buttonGeneratePassword.Enabled = $true}
+        
         if (-not [string]::IsNullOrEmpty($global:primaryUser)) {
             if ($buttonCopyGroups.Enabled) {$buttonCopyGroups.Enabled = $true}
             else {$buttonCopyGroups.Enabled = $false}
@@ -303,7 +304,7 @@ function Main {
         $userText = $textboxADUsername.Text
         if ($userText -eq $global:primaryUser.SamAccountName -and $textboxCSVFilePath.Text -eq "") {
             # Generate password
-            GeneratePassword $global:primaryUser.SamAccountName
+            GeneratePassword $global:totalDigits
 
             # Manage buttons
             if (-not $buttonMoveOU.Enabled) {
@@ -613,5 +614,10 @@ function Main {
     [Windows.Forms.Application]::Run($form)
 }
 # ============== MAIN SECTION =================== #
+# Log Action
+LogScriptExecution -logPath $logFilePath -action ("= " * 35) -userName $env:USERNAME
+LogScriptExecution -logPath $logFilePath -action ("{0,42}" -f "Script Start") -userName $env:USERNAME
+LogScriptExecution -logPath $logFilePath -action ("= " * 35) -userName $env:USERNAME
 
+# Run main function
 Main
