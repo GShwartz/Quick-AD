@@ -41,37 +41,99 @@ function GenerateRandomNumber {
     return $result.ToString()
 }
 
-# Function to generate a random password based on initials and a random special character
-function GeneratePassword($total) {
-    # Extract the initials from the AD user account
-    $initials = ($global:primaryUser.GivenName.Substring(0, 1).ToUpper()) + ($global:primaryUser.Surname.Substring(0, 1).ToLower())
-    
-    # Generate a random 6 digit number
-    $randomNumber = GenerateRandomNumber -totalNum $total
+# Function to generate a password based on user input
+function GeneratePassword {
+    # Ensure minimum constraints are met
+    $upperLetters = Get-Random -Count $global:passDefaultUpperNum -InputObject ([char[]]'ABCDEFGHIJKLMNOPQRSTUVWXYZ')
+    $upperLetters = $upperLetters -replace ' ', ''
+    $lowerLetters = Get-Random -Count $global:passDefaultUpperNum -InputObject ([char[]]'abcdefghijklmnopqrstuvwxyz')
+    $lowerLetters = $lowerLetters -replace ' ', ''
+    $specials = ($global:specialChars | Get-Random -Count $global:passDefaultSpecialsNum) -join ''
+    $specials = $specials -replace ' ', ''
+    $digits = Get-Random -Count $global:passDefaultDigitsNum -InputObject (0..9)
+    $digits = $digits -replace ' ', ''
 
-    # Define a list of special characters
-    $specialCharacters = '!', '@', '#', '$'
+    if ($global:passDefaultIncludeInitials) {
+        $initials = ($global:primaryUser.GivenName.Substring(0, 1).ToUpper()) + ($global:primaryUser.Surname.Substring(0, 1).ToLower())
+        $password = $initials + $specials + $digits
+        $password = $password -replace ' ', ''
 
-    # Choose a random special character
-    $randomSpecialChar = $specialCharacters | Get-Random
+        if ($global:passShuffle) {
+            $password = -join ($password.ToCharArray() | Get-Random -Count $password.Length)
 
-    # Generate a password
-    $password = $initials + $randomSpecialChar + $randomNumber
+        }
 
-    # Copy the generated password to the clipboard
-    $securePassword = ConvertTo-SecureString -String $password -AsPlainText -Force
-    [System.Windows.Forms.Clipboard]::SetText([System.Runtime.InteropServices.Marshal]::PtrToStringUni([System.Runtime.InteropServices.Marshal]::SecureStringToGlobalAllocUnicode($securePassword)))
+        # Copy the generated password to the clipboard
+        $securePassword = ConvertTo-SecureString -String $password -AsPlainText -Force
+        [System.Windows.Forms.Clipboard]::SetText([System.Runtime.InteropServices.Marshal]::PtrToStringUni([System.Runtime.InteropServices.Marshal]::SecureStringToGlobalAllocUnicode($securePassword)))
 
-    # Update statusbar message
-    UpdateStatusBar "Password generated for $($global:primaryUser.SamAccountName) & has been copied to the clipboard." -color 'Black'
-    
-    # Display the generated password
-    [System.Windows.Forms.MessageBox]::Show("Generated Password: $password`n`nThe password has been copied to the clipboard.", "Password Generated", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-    
-    # Build and return the password
-    return ($securePassword)
+        # Update statusbar message
+        UpdateStatusBar "Password generated for $($global:primaryUser.SamAccountName) & has been copied to the clipboard." -color 'Black'
+        
+        # Display the generated password
+        [System.Windows.Forms.MessageBox]::Show("Generated Password: $password`n`nThe password has been copied to the clipboard.", "Password Generated", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+        
+        # Build and return the password
+        return $securePassword
+    }
+    else {
+        $password = $upperLetters + $lowerLetters + $specials + $digits
+        $password = $password -replace ' ', ''
 
+        if ($global:passShuffle) {
+            $password = -join ($password.ToCharArray() | Get-Random -Count $password.Length)
+        }
+
+        # Copy the generated password to the clipboard
+        $securePassword = ConvertTo-SecureString -String $password -AsPlainText -Force
+        [System.Windows.Forms.Clipboard]::SetText([System.Runtime.InteropServices.Marshal]::PtrToStringUni([System.Runtime.InteropServices.Marshal]::SecureStringToGlobalAllocUnicode($securePassword)))
+
+        # Update statusbar message
+        UpdateStatusBar "Password generated for $($global:primaryUser.SamAccountName) & has been copied to the clipboard." -color 'Black'
+        
+        # Display the generated password
+        [System.Windows.Forms.MessageBox]::Show("Generated Password: $password`n`nThe password has been copied to the clipboard.", "Password Generated", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+        
+        # Build and return the password
+        return $securePassword
+    }
 }
+
+
+
+
+
+# Function to generate a random password based on initials and a random special character
+# function GeneratePassword {
+#     # Extract the initials from the AD user account
+#     $initials = ($global:primaryUser.GivenName.Substring(0, 1).ToUpper()) + ($global:primaryUser.Surname.Substring(0, 1).ToLower())
+    
+#     # Generate a random 6 digit number
+#     $randomNumber = GenerateRandomNumber    
+
+#     # Define a list of special characters
+#     $specialCharacters = '!', '@', '#', '$'
+
+#     # Choose a random special character
+#     $randomSpecialChar = $specialCharacters | Get-Random
+
+#     # Generate a password
+#     $password = $initials + $randomSpecialChar + $randomNumber
+
+#     # Copy the generated password to the clipboard
+#     $securePassword = ConvertTo-SecureString -String $password -AsPlainText -Force
+#     [System.Windows.Forms.Clipboard]::SetText([System.Runtime.InteropServices.Marshal]::PtrToStringUni([System.Runtime.InteropServices.Marshal]::SecureStringToGlobalAllocUnicode($securePassword)))
+
+#     # Update statusbar message
+#     UpdateStatusBar "Password generated for $($global:primaryUser.SamAccountName) & has been copied to the clipboard." -color 'Black'
+    
+#     # Display the generated password
+#     [System.Windows.Forms.MessageBox]::Show("Generated Password: $password`n`nThe password has been copied to the clipboard.", "Password Generated", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+    
+#     # Build and return the password
+#     return ($securePassword)
+
+# }
 
 # Function to reset the password and disable "Change password at next logon" and clear "Password Never Expires"
 function ResetPassword {

@@ -98,11 +98,13 @@ function CreateListBox {
 function CreateCheckbox {
     param(
         [int]$x,
-        [int]$y
+        [int]$y,
+        [string]$text
     )
 
     $checkbox = New-Object System.Windows.Forms.CheckBox
     $checkbox.Location = New-Object System.Drawing.Point($x, $y)
+    $checkbox.Text = $text
 
     return $checkbox
 }
@@ -124,6 +126,9 @@ function CreateNumbersDropdown {
 
     # Populate the dropdown with numbers from $minValue to $maxValue
     $dropdown.Items.AddRange($minValue..$maxValue)
+
+    # Set the dropdown style to DropDownList to make it read-only
+    $dropdown.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
 
     return $dropdown
 }

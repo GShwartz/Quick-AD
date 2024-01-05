@@ -1,6 +1,6 @@
 # Get the directory of the script file
 $scriptDirectory = [System.IO.Path]::GetDirectoryName($MyInvocation.MyCommand.Definition)
-$passBuilderModuleFileName = "PasswordBuilder.psm1"
+$passBuilderModuleFileName = "PasswordSettings.psm1"
 
 # Combine the script directory and file names to get path
 $moduleFileName = Join-Path -Path $scriptDirectory -ChildPath $passBuilderModuleFileName
@@ -62,10 +62,17 @@ function CreateMenuStrip {
 
     # File menu
     $fileMenu = $menuStrip.Items.Add("File")
+    $fileMenu.Padding = New-Object System.Windows.Forms.Padding(0)
+    
+    # Settings menu
     $settingsMenuItem = $fileMenu.DropDownItems.Add("Settings")
-    $settingsMenuItem.Add_Click({
-        Write-Host "Work in progress."
-        # SetPasswordStrengt
+    $settingsMenuItem.Padding = New-Object System.Windows.Forms.Padding(0)
+
+    # Password Strength sub-menu
+    $passwordStrengthMenuItem = $settingsMenuItem.DropDownItems.Add("Password Strength")
+    $passwordStrengthMenuItem.Add_Click({
+        #Write-Host "Work in progress."
+        SetPasswordStrength
     })
 
     $exitMenuItem = $fileMenu.DropDownItems.Add("Exit")
@@ -76,6 +83,7 @@ function CreateMenuStrip {
 
     # Help menu
     $helpMenu = $menuStrip.Items.Add("Help")
+    $helpMenu.Padding = New-Object System.Windows.Forms.Padding(0)
     $helpMenuAbout = $helpMenu.DropDownItems.Add("About")
     $helpMenuAbout.Add_Click({
         ShowAboutWindow
@@ -86,7 +94,7 @@ function CreateMenuStrip {
         param($sender, $e)
 
         $borderColor = [System.Drawing.Color]::Black
-        $borderWidth = 1
+        $borderWidth = 0.2
 
         $rect = $sender.ClientRectangle
         $rect.Width--
