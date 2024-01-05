@@ -10,7 +10,6 @@ function CreateCanvas {
     $form.Text = $formTitle
     $form.Size = New-Object System.Drawing.Size($x, $y)
     $form.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
-    #$form.BackColor = [System.Drawing.Color]::White
     $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedSingle
 
     return $form
@@ -138,11 +137,13 @@ function CreateStatusBar {
     # Create a status bar
     $global:statusBar = New-Object System.Windows.Forms.StatusBar
     $statusBar.Dock = [System.Windows.Forms.DockStyle]::Bottom
+    $statusBar.Padding = '0,0,0,0'
 
     # Create a textbox for status bar
     $global:statusBarTextBox = New-Object System.Windows.Forms.TextBox
     $statusBarTextBox.Multiline = $false
     $statusBarTextBox.Anchor = [System.Windows.Forms.AnchorStyles]::Bottom -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right
+    $statusBarTextBox.Width = 470
     $statusBarTextBox.Text = "Ready"
     $statusBarTextBox.ForeColor = [System.Drawing.Color]::Black
     $statusBarTextBox.BackColor = [System.Drawing.Color]::Wheat

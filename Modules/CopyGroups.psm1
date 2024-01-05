@@ -63,7 +63,7 @@ function ShowCopyGroupsForm {
 
             if ($null -ne $userCheckup) {
                 # Perform the copy groups action
-                $isCopied, $message = CopyGroups -adUsername $global:primaryUser.SamAccountName -exampleADuser $exampleADuser
+                $isCopied, $message = CopyGroups -adUsername $global:primaryUser.SamAccountName -exampleADuser $exampleADuser -isCSVuser $false
                 if (-not $isCopied) {
                     # Log the start of script execution
                     LogScriptExecution -logPath $global:logFilePath -action "Failed to copy groups from $($exampleADuser). $($message)" -userName $env:USERNAME

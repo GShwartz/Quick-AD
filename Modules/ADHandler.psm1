@@ -99,42 +99,6 @@ function GeneratePassword {
     }
 }
 
-
-
-
-
-# Function to generate a random password based on initials and a random special character
-# function GeneratePassword {
-#     # Extract the initials from the AD user account
-#     $initials = ($global:primaryUser.GivenName.Substring(0, 1).ToUpper()) + ($global:primaryUser.Surname.Substring(0, 1).ToLower())
-    
-#     # Generate a random 6 digit number
-#     $randomNumber = GenerateRandomNumber    
-
-#     # Define a list of special characters
-#     $specialCharacters = '!', '@', '#', '$'
-
-#     # Choose a random special character
-#     $randomSpecialChar = $specialCharacters | Get-Random
-
-#     # Generate a password
-#     $password = $initials + $randomSpecialChar + $randomNumber
-
-#     # Copy the generated password to the clipboard
-#     $securePassword = ConvertTo-SecureString -String $password -AsPlainText -Force
-#     [System.Windows.Forms.Clipboard]::SetText([System.Runtime.InteropServices.Marshal]::PtrToStringUni([System.Runtime.InteropServices.Marshal]::SecureStringToGlobalAllocUnicode($securePassword)))
-
-#     # Update statusbar message
-#     UpdateStatusBar "Password generated for $($global:primaryUser.SamAccountName) & has been copied to the clipboard." -color 'Black'
-    
-#     # Display the generated password
-#     [System.Windows.Forms.MessageBox]::Show("Generated Password: $password`n`nThe password has been copied to the clipboard.", "Password Generated", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-    
-#     # Build and return the password
-#     return ($securePassword)
-
-# }
-
 # Function to reset the password and disable "Change password at next logon" and clear "Password Never Expires"
 function ResetPassword {
     if ($null -ne $global:primaryUser) {
@@ -274,7 +238,8 @@ function IsUserLockedOut($username) {
 function CopyGroups {
     param (
         [string]$adUsername,
-        [string]$exampleADuser
+        [string]$exampleADuser,
+        [bool]$isCSVuser
     )
 
     try {
@@ -301,38 +266,42 @@ function CopyGroups {
         return $false, $message
     }
 
-    $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
-    Write-Host ""
-    for ($i = 1; $i -le 40; $i++) {
-        $currentColor = if ($i % 2 -eq 0) { 'Blue' } else { 'White' }
-        Write-Host "=" -ForegroundColor $currentColor -NoNewline
-        Write-Host " " -NoNewline
+    if (-not $isCSVuser) {
+        $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+        Write-Host ""
+        for ($i = 1; $i -le 40; $i++) {
+            $currentColor = if ($i % 2 -eq 0) { 'Blue' } else { 'White' }
+            Write-Host "=" -ForegroundColor $currentColor -NoNewline
+            Write-Host " " -NoNewline
+        }
+        Write-Host ""
+        Write-Host "$($dateTime) | " -NoNewline
+        Write-Host "Copying groups from $($exampleADuser)..."
+        for ($i = 1; $i -le 40; $i++) {
+            $currentColor = if ($i % 2 -eq 0) { 'Blue' } else { 'White' }
+            Write-Host "=" -ForegroundColor $currentColor -NoNewline
+            Write-Host " " -NoNewline
+        }
+        Write-Host ""
     }
-    Write-Host ""
-    Write-Host "$($dateTime) | " -NoNewline
-    Write-Host "Copying groups from $($exampleADuser)..."
-    for ($i = 1; $i -le 40; $i++) {
-        $currentColor = if ($i % 2 -eq 0) { 'Blue' } else { 'White' }
-        Write-Host "=" -ForegroundColor $currentColor -NoNewline
-        Write-Host " " -NoNewline
-    }
-    Write-Host ""
 
     # Add the user to the groups of the specified $adUsername
     foreach ($group in $userGroups) {
         try {
             # Perform AD group Add action
-            Add-ADGroupMember -Identity $group -Members $global:primaryUser.SamAccountName -ErrorAction Continue
+            Add-ADGroupMember -Identity $group -Members $adUsername -ErrorAction Continue
 
-            $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
-            Write-Host "$($dateTime) | " -NoNewLine 
-            Write-Host "User " -NoNewline -ForegroundColor Green
-            Write-Host "'$($global:primaryUser.SamAccountName)' " -NoNewline
-            Write-Host "joined " -NoNewline -ForegroundColor Green
-            Write-Host "$($group)."
+            if (-not $isCSVuser) {
+                $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                Write-Host "$($dateTime) | " -NoNewLine 
+                Write-Host "User " -NoNewline -ForegroundColor Green
+                Write-Host "'$($adUsername)' " -NoNewline
+                Write-Host "joined " -NoNewline -ForegroundColor Green
+                Write-Host "$($group)."
+            }
 
             # Log action
-            LogScriptExecution -logPath $global:logFilePath -action "$($global:primaryUser.SamAccountName) joined $($group)." -userName $env:USERNAME
+            LogScriptExecution -logPath $global:logFilePath -action "$($adUsername) joined $($group)." -userName $env:USERNAME
 
             # Set a timer to avoid request flooding | DOS
             Start-Sleep -Milliseconds 300
@@ -342,7 +311,7 @@ function CopyGroups {
             # Check if the error message contains the string indicating that the member already exists.
             if ($_.Exception.Message -match "specified user account is already a member of the specified group") {
                 # Set a timer to avoid request flooding | DOS
-                Start-Sleep -Milliseconds 300
+                Start-Sleep -Milliseconds 200
             } 
             else {
                 # Log action
@@ -357,29 +326,32 @@ function CopyGroups {
         }
     }
 
-    # Retrieve and print the groups the user is a member of (only group names)
-    $userGroups = Get-ADUser -Identity $global:primaryUser.SamAccountName -Properties MemberOf | 
-        Select-Object -ExpandProperty MemberOf | 
-        ForEach-Object { (Get-ADGroup $_).Name }
+    if (-not $isCSVuser) {
+        # Retrieve and print the groups the user is a member of (only group names)
+        $userGroups = Get-ADUser -Identity $adUsername -Properties MemberOf | 
+            Select-Object -ExpandProperty MemberOf | 
+            ForEach-Object { (Get-ADGroup $_).Name }
 
-    $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
-    Write-Host ""
-    for ($i = 1; $i -le 40; $i++) {
-        $currentColor = if ($i % 2 -eq 0) { 'Blue' } else { 'White' }
-        Write-Host "=" -ForegroundColor $currentColor -NoNewline
-        Write-Host " " -NoNewline
-    }
-    Write-Host ""
-    Write-Host "$($dateTime) | " -NoNewline
-    Write-Host "User '$($global:primaryUser.SamAccountName)' is a member of the following groups:"
-    foreach ($group in $userGroups) {
-        Write-Host " *** $group" -ForegroundColor Cyan
-    }
-    Write-Host ""
+        $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+        Write-Host ""
+        for ($i = 1; $i -le 40; $i++) {
+            $currentColor = if ($i % 2 -eq 0) { 'Blue' } else { 'White' }
+            Write-Host "=" -ForegroundColor $currentColor -NoNewline
+            Write-Host " " -NoNewline
+        }
+        Write-Host ""
+        Write-Host "$($dateTime) | " -NoNewline
+        Write-Host "User '$($adUsername)' is a member of the following groups:"
+        foreach ($group in $userGroups) {
+            Write-Host " *** $group" -ForegroundColor Cyan
+        }
+        Write-Host ""
 
-    $message = "Copy Groups completed for user: '$($global:primaryUser.SamAccountName)'."
-    # Update statusbar message
-    UpdateStatusBar "$($message)" -color 'Black'
+        $message = "Copy Groups completed for user: '$($adUsername)'."
+        
+        # Update statusbar message
+        UpdateStatusBar "$($message)" -color 'Black'
+    }
 
     $global:buttonFindADUser.Enabled = $true
     return $true, $message

@@ -6,7 +6,8 @@ $modulePaths = @(
     "Logger",           # Handles logging
     "Lock",             # Provides functions for locking and unlocking resources
     "Visuals",          # Handles visual components and UI elements
-    "BuildForm"         # Builds and configures forms
+    "BuildForm",        # Builds and configures forms
+    "ADHandler"         # Hanldes Active Directory proccesses
 )
 
 foreach ($moduleName in $modulePaths) {
@@ -212,7 +213,7 @@ function BrowseAndLoadCSV {
                     DrawVmark $global:form 210 235 "CSVPath"
                     
                     $global:buttonGeneratePassword.Enabled = $true
-                    $global:buttonCopyGroups.Enabled = $false
+                    $global:buttonCopyGroups.Enabled = $true
                     $global:buttonRemoveGroups.Enabled = $true
                     $global:buttonMoveOU.Enabled = $true
                     $global:isCSV = $true
@@ -539,28 +540,56 @@ function GenerateCSVPasswords($path) {
                         }
                     }
 
-                    # Set user as primary
-                    $primary = $csvUser
+                    # Generate password
+                    # Ensure minimum constraints are met
+                    $upperLetters = Get-Random -Count $global:passDefaultUpperNum -InputObject ([char[]]'ABCDEFGHIJKLMNOPQRSTUVWXYZ')
+                    $upperLetters = $upperLetters -replace ' ', ''
+                    $lowerLetters = Get-Random -Count $global:passDefaultUpperNum -InputObject ([char[]]'abcdefghijklmnopqrstuvwxyz')
+                    $lowerLetters = $lowerLetters -replace ' ', ''
+                    $specials = ($global:specialChars | Get-Random -Count $global:passDefaultSpecialsNum) -join ''
+                    $specials = $specials -replace ' ', ''
+                    $digits = Get-Random -Count $global:passDefaultDigitsNum -InputObject (0..9)
+                    $digits = $digits -replace ' ', ''
 
-                    # Extract the initials from the AD user account
-                    $initials = ($primary.GivenName.Substring(0, 1).ToUpper()) + ($primary.Surname.Substring(0, 1).ToLower())
+                    # Validate use of the AD user's initials
+                    if ($global:passDefaultIncludeInitials) {
+                        $initials = ($csvUser.GivenName.Substring(0, 1).ToUpper()) + ($csvUser.Surname.Substring(0, 1).ToLower())
+                        $password = $initials + $specials + $digits
+                        $password = $password -replace ' ', ''
 
-                    # Generate a random 6-digit number
-                    $randomNumber = GenerateRandomNumber
+                        # Check if Shuffle is ON
+                        if ($global:passShuffle) {
+                            $password = -join ($password.ToCharArray() | Get-Random -Count $password.Length)
 
-                    # Define a list of special characters
-                    $specialCharacters = '!', '@', '#', '$'
+                        }
 
-                    # Choose a random special character
-                    $randomSpecialChar = $specialCharacters | Get-Random
+                        # Copy the generated password to the clipboard
+                        $securePassword = ConvertTo-SecureString -String $password -AsPlainText -Force
+                        [System.Windows.Forms.Clipboard]::SetText([System.Runtime.InteropServices.Marshal]::PtrToStringUni([System.Runtime.InteropServices.Marshal]::SecureStringToGlobalAllocUnicode($securePassword)))
 
-                    # Generate a password
-                    $password = $initials + $randomSpecialChar + $randomNumber
+                        # Update statusbar message
+                        UpdateStatusBar "Password generated for $($global:primaryUser.SamAccountName) & has been copied to the clipboard." -color 'Black'
+                    }
+                    else {
+                        $password = $upperLetters + $lowerLetters + $specials + $digits
+                        $password = $password -replace ' ', ''
 
-                    # Update the 'Password' column in the CSV data
-                    $_.Password = $password
+                        # Check if Shuffle is ON
+                        if ($global:passShuffle) {
+                            $password = -join ($password.ToCharArray() | Get-Random -Count $password.Length)
+                        }
+
+                        # Copy the generated password to the clipboard
+                        $securePassword = ConvertTo-SecureString -String $password -AsPlainText -Force
+                        [System.Windows.Forms.Clipboard]::SetText([System.Runtime.InteropServices.Marshal]::PtrToStringUni([System.Runtime.InteropServices.Marshal]::SecureStringToGlobalAllocUnicode($securePassword)))
+
+                        # Update statusbar message
+                        UpdateStatusBar "Password generated for $($global:primaryUser.SamAccountName) & has been copied to the clipboard." -color 'Black'
+                    }
+
+                    $_.Password = $password.ToString()
                     
-                    # Update console
+                    # # Update console
                     $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
                     Write-Host "$($dateTime) | " -NoNewline 
                     Write-Host "Password generated for " -NoNewline -ForegroundColor Green
@@ -569,6 +598,7 @@ function GenerateCSVPasswords($path) {
                     # Log action
                     LogScriptExecution -logPath $global:logFilePath -action "Password generated for '$($username)'." -userName $env:USERNAME
 
+                    # Give AD server a break
                     Start-Sleep -Milliseconds 300
                     
                 } else {
@@ -582,6 +612,7 @@ function GenerateCSVPasswords($path) {
                     # Log action
                     LogScriptExecution -logPath $global:logFilePath -action "User '$($username)' not found." -userName $env:USERNAME
 
+                    # Give AD server a break
                     Start-Sleep -Milliseconds 300
                 }
             } 
@@ -619,7 +650,7 @@ function GenerateCSVPasswords($path) {
         LogScriptExecution -logPath $global:logFilePath -action "User '$($username)' not found." -userName $env:USERNAME
 
         # Update statusbar message
-        UpdateStatusBar "Error  while processing the CSV file: $_." -color 'Red'
+        UpdateStatusBar "Error while processing the CSV file: $_." -color 'Red'
     }
 }
 
@@ -858,6 +889,7 @@ function HandleMoveOUCSV($exampleDistinguishedName) {
     #Start-Process $csvPath
 }
 
+# Function to handle CSV group removals
 function ProccessCSVGroupRemoval {
     $csvPath = $textboxCSVFilePath.Text
     $csvData = Import-Csv -Path $textboxCSVFilePath.Text
@@ -881,6 +913,9 @@ function ProccessCSVGroupRemoval {
                         Write-Host "'$($username)' " -NoNewline
                         Write-Host "is not a member of any group." -ForegroundColor Yellow
 
+                        # Log action
+                        LogScriptExecution -logPath $global:logFilePath -action "The user account '$($username)' is not a member of any group." -userName $env:USERNAME
+
                         # Update statusbar message
                         UpdateStatusBar "The user account '$($username)' is not a member of any group." -color 'Red'
                     }
@@ -900,7 +935,7 @@ function ProccessCSVGroupRemoval {
                             Write-Host "$($group)."
 
                             # Log action
-                            LogScriptExecution -logPath $logFilePath -action "$($username) has been removed from $($group)." -userName $env:USERNAME
+                            LogScriptExecution -logPath $global:logFilePath -action "$($username) has been removed from $($group)." -userName $env:USERNAME
 
                             Start-Sleep -Milliseconds 300
 
@@ -917,7 +952,7 @@ function ProccessCSVGroupRemoval {
                             UpdateStatusBar "Error removing user '$($username) from group $($group). Check Log." -color 'Red'
 
                             # Log action
-                            LogScriptExecution -logPath $logFilePath -action "Error removing user $username from group $group. $_." -userName $env:USERNAME
+                            LogScriptExecution -logPath $global:logFilePath -action "Error removing user $username from group $group. $_." -userName $env:USERNAME
 
                             # Skip to the next entry
                             continue
@@ -933,7 +968,7 @@ function ProccessCSVGroupRemoval {
                     Write-Host "is disabled. skipping... " -ForegroundColor Yellow
 
                     # Log action
-                    LogScriptExecution -logPath $logFilePath -action "User '$($username)' is disabled. skipping..." -userName $env:USERNAME
+                    LogScriptExecution -logPath $global:logFilePath -action "User '$($username)' is disabled. skipping..." -userName $env:USERNAME
 
                     Start-Sleep -Milliseconds 300
                     continue
@@ -955,4 +990,231 @@ function ProccessCSVGroupRemoval {
     [System.Windows.Forms.MessageBox]::Show("Group removal for CSV users completed successfully.", "CSV Group Removal", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
 
     $buttonRemoveGroups.Enabled = $false
+}
+
+# Function to handle CSV group copy
+function ProcessCSVCopyGroups {
+    $csvCopyExample = $null
+    $csvExampleGroups = @()
+
+    # Create form
+    $csvCGForm = CreateCanvas "CSV Copy Groups" -x 300 -y 150
+    
+    # Create example user label
+    $labelCGExampleUser = CreateLabel -text "Example AD username" -x 20 -y 10 -width 150 -height 20
+    
+    # Create example user textbox
+    $textboxCGExample = CreateTextbox -x 20 -y 30 -width 150 -height 20 -readOnly $false
+
+    # Create buttons
+    $buttonCopy = CreateButton -text "Copy" -x 20 -y 60 -width 70 -height 25 -enabled $false
+    $buttonCancelCG = CreateButton -text "Cancel" -x 200 -y 60 -width 70 -height 25 -enabled $true
+
+    $textboxCGExample.add_TextChanged({
+        if ([string]::IsNullOrEmpty($textboxCGExample.Text)) {$buttonCopy.Enabled = $false} else {$buttonCopy.Enabled = $true}
+    })
+
+    $buttonCopy.Add_Click({
+        # Disable the copy button
+        $buttonCopy.Enabled = $false
+        $csvCopyExample = $textboxCGExample.Text
+        $exampleUser = FindADUser $csvCopyExample
+
+        # Check if the example user is Disabled
+        if (-not [string]::IsNullOrEmpty($exampleUser)) {
+            if (-not $exampleUser.Enabled) {
+                $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                Write-Host "$($dateTime) | " -NoNewline
+                Write-Host "Example user " -NoNewLine -ForegroundColor Red
+                Write-Host "'$($exampleUser.SamAccountName)' " -NoNewline
+                Write-Host "is disabled." -ForegroundColor Red
+
+                # Log action
+                LogScriptExecution -logPath $global:logFilePath -action "Example user '$($exampleUser.SamAccountName)' is disabled." -userName $env:USERNAME
+
+                # Update statusbar message
+                UpdateStatusBar "Example user '$($exampleUser.SamAccountName)' is disabled." -color 'Red'
+
+                # Display a summery information dialog box
+                [System.Windows.Forms.MessageBox]::Show("Example user '$($exampleUser.SamAccountName)' is disabled.", "CSV Copy Groups", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+
+                return $false
+            }
+        }
+        else {
+            $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+            Write-Host "$($dateTime) | " -NoNewline
+            Write-Host "Example user " -NoNewLine -ForegroundColor Red
+            Write-Host "'$($csvCopyExample)' " -NoNewline
+            Write-Host "was not found." -ForegroundColor Red
+
+            # Update statusbar message
+            UpdateStatusBar "Example user '$($csvCopyExample)' was not found." -color 'Red'
+
+            # Display a summery information dialog box
+            [System.Windows.Forms.MessageBox]::Show("Example user '$($csvCopyExample)' was not found.", "CSV Copy Groups", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+
+            return $false
+        }
+
+        # Import CSV data
+        $csvPath = $textboxCSVFilePath.Text
+        $csvData = Import-Csv -Path $csvPath
+
+        for ($i = 1; $i -le 40; $i++) {
+            $currentColor = if ($i % 2 -eq 0) { 'Blue' } else { 'White' }
+            Write-Host "=" -ForegroundColor $currentColor -NoNewline
+            Write-Host " " -NoNewline
+        }
+        Write-Host ""
+
+        # Loop through each user in the CSV
+        foreach ($csvUser in $csvData) {
+            # Find the user in AD
+            $adUser = FindADUser $csvUser.Username
+            if ([string]::IsNullOrEmpty($adUser)) {
+                $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                Write-Host "$($dateTime) | " -NoNewline
+                Write-Host "CSV user " -NoNewline -ForegroundColor Red
+                Write-Host "'$($csvUser.Username)' " -NoNewline
+                Write-Host "not found." -ForegroundColor Red
+
+                # Log action
+                LogScriptExecution -logPath $global:logFilePath -action "CSV user '$($csvUser.Username)' was not found." -userName $env:USERNAME
+
+                # Update statusbar message
+                UpdateStatusBar "CSV user '$($csvUser.Username)' was not found." -color 'Red'
+
+                continue
+            }
+
+            # Check if the CSV user is Disabled
+            if (-not $adUser.Enabled) {
+                $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                Write-Host "$($dateTime) | " -NoNewline
+                Write-Host "CSV user " -NoNewline -ForegroundColor Yellow
+                Write-Host "'$($adUser.SamAccountName)' " -NoNewline 
+                Write-Host "is disabled. Waiting for instructions..." -ForegroundColor Yellow
+
+                # Log action
+                LogScriptExecution -logPath $global:logFilePath -action "CSV user '$($adUser.SamAccountName)' is disabled. Waiting for instructions..." -userName $env:USERNAME
+
+                # Update statusbar message
+                UpdateStatusBar "CSV user '$($adUser.SamAccountName)' is disabled. Waiting for instructions..." -color 'Black'
+
+                # Confirm action with user
+                $confirmResult = [System.Windows.Forms.MessageBox]::Show("User '$($adUser.SamAccountName)' is disabled. Re-Enable?", "Re-Enable", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question)
+                if ($confirmResult -eq [System.Windows.Forms.DialogResult]::Yes) {
+                    $global:primaryUser = $adUser
+
+                    # Release the script lock to allow the re-enable process
+                    ReleaseLock
+
+                    # Display the Re-Enable form
+                    ShowReEnableForm
+
+                    $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                    Write-Host "$($dateTime) | " -NoNewline
+                    Write-Host "CSV user " -NoNewline -ForegroundColor Cyan
+                    Write-Host "'$($adUser.SamAccountName)' " -NoNewline
+                    Write-Host "has been re-enabled successfully." -ForegroundColor Cyan
+
+                    # Update statusbar message
+                    UpdateStatusBar "CSV user '$($adUser.SamAccountName)' has been re-enabled successfully." -color 'Black'
+                }
+                else {
+                    $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                    Write-Host "$($dateTime) | " -NoNewline
+                    Write-Host "Skipped Re-Enable on " -NoNewline -ForegroundColor Cyan
+                    Write-Host "'$($adUser.SamAccountName)'."
+
+                    # Update statusbar message
+                    UpdateStatusBar "Skipped Re-Enable on '$($adUser.SamAccountName)'." -color 'Black'
+
+                    # Log action
+                    LogScriptExecution -logPath $global:logFilePath -action "Skipped Re-Enable on '$($adUser.SamAccountName)'." -userName $env:USERNAME
+
+                    continue
+                }
+            }
+
+            # Copy groups from example user to CSV user
+            $success, $message = CopyGroups -adUsername "$($adUser.SamAccountName)" -exampleADuser "$($exampleUser.SamAccountName)" -isCSVuser $true
+
+            if (-not $success) {
+                if ($message -match "Example user is not a member of any group") {
+                    $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                    Write-Host "$($dateTime) | " -NoNewline
+                    Write-Host "Example user " -NoNewline -ForegroundColor Red
+                    Write-Host "'$($exampleUser.SamAccountName)' " -NoNewline
+                    Write-Host "is not a member of any group. terminating." -ForegroundColor Red
+
+                    # Update statusbar message
+                    UpdateStatusBar "Example user '$($csvCopyExample)' is not a member of any group. Copy Groups terminated." -color 'Red'
+
+                    # Log action
+                    LogScriptExecution -logPath $global:logFilePath -action "Example user '$($csvCopyExample)' is not a member of any group. Copy Groups terminated." -userName $env:USERNAME
+
+                    return $false
+                }
+                else {
+                    Write-Host "Error: $message" -ForegroundColor Red
+                    return $false
+                }
+            }
+            else {
+                $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                Write-Host "$($dateTime) | " -NoNewline
+                Write-Host "CSV user " -NoNewline -ForegroundColor Green
+                Write-Host "'$($adUser.SamAccountName)' " -NoNewline
+                Write-Host "joined groups." -ForegroundColor Green
+
+                # Update statusbar message
+                UpdateStatusBar "CSV user '$($adUser.SamAccountName)' joined groups." -color 'Black'
+
+                # Log action
+                LogScriptExecution -logPath $global:logFilePath -action "CSV user '$($adUser.SamAccountName)' joined groups." -userName $env:USERNAME
+            }
+
+            Start-Sleep -Milliseconds 300
+        }
+
+        $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+        Write-Host "$($dateTime) | " -NoNewline
+        Write-Host "Copy groups for CSV users completed successfully." -ForegroundColor Green
+        for ($i = 1; $i -le 40; $i++) {
+            $currentColor = if ($i % 2 -eq 0) { 'Blue' } else { 'White' }
+            Write-Host "=" -ForegroundColor $currentColor -NoNewline
+            Write-Host " " -NoNewline
+        }
+        Write-Host ""
+
+        # Log action
+        LogScriptExecution -logPath $global:logFilePath -action "Copy groups for CSV users completed successfully." -userName $env:USERNAME
+
+        # Update statusbar message
+        UpdateStatusBar "Copy groups for CSV users completed successfully." -color 'Black'
+
+        # Manage buttons
+        if ($global:buttonRemoveGroups.Enabled) {$global:buttonRemoveGroups.Enabled = $true} else {$global:buttonRemoveGroups.Enabled = $false}
+        $global:buttonFindADUser.Enabled = $false
+        $global:buttonFindComputer.Enabled = $false
+        $global:buttonGeneratePassword.Enabled = $true
+        $global:buttonCopyGroups.Enabled = $true
+        $global:buttonMoveOU.Enabled = $true
+
+        $csvCGForm.Close()
+    })
+
+    $buttonCancelCG.Add_Click({
+        $csvCGForm.Close()
+    })
+
+    $csvCGForm.Controls.Add($labelCGExampleUser)
+    $csvCGForm.Controls.Add($textboxCGExample)
+    $csvCGForm.Controls.Add($buttonCopy)
+    $csvCGForm.Controls.Add($buttonCancelCG)
+
+    $csvCGForm.ShowDialog()
+
 }

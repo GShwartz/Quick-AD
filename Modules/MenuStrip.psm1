@@ -58,12 +58,13 @@ function CreateMenuStrip {
     $menuStrip = New-Object System.Windows.Forms.MenuStrip
     $menuStrip.Height = 4
     $menuStrip.BackColor = [System.Drawing.Color]::Wheat
-    $menuStrip.Padding = New-Object System.Windows.Forms.Padding(1)
+    $menuStrip.Padding = New-Object System.Windows.Forms.Padding(0)
+    $menuStrip.RenderMode = [System.Windows.Forms.ToolStripRenderMode]::Professional
 
     # File menu
-    $fileMenu = $menuStrip.Items.Add("File")
-    $fileMenu.Padding = New-Object System.Windows.Forms.Padding(0)
-    
+    $fileMenu = $menuStrip.Items.Add(" File  ")
+    $fileMenu.Padding = New-Object System.Windows.Forms.Padding(0.5)
+
     # Settings menu
     $settingsMenuItem = $fileMenu.DropDownItems.Add("Settings")
     $settingsMenuItem.Padding = New-Object System.Windows.Forms.Padding(0)
@@ -71,8 +72,20 @@ function CreateMenuStrip {
     # Password Strength sub-menu
     $passwordStrengthMenuItem = $settingsMenuItem.DropDownItems.Add("Password Strength")
     $passwordStrengthMenuItem.Add_Click({
-        #Write-Host "Work in progress."
         SetPasswordStrength
+    })
+
+    # Tooltips sub-menu
+    $tooltipsMenuItem = $settingsMenuItem.DropDownItems.Add("Tooltips")
+    $tooltipsMenuItem.CheckOnClick = $true
+
+    # Set the initial checked state based on the global variable
+    $tooltipsMenuItem.Checked = $global:showTooltips
+
+    # Update Checked property inside the CheckStateChanged event handler
+    $tooltipsMenuItem.Add_CheckStateChanged({
+        if (-not $tooltipsMenuItem.Checked) {$global:showTooltips = $false} else {$global:showTooltips = $true}
+        $global:form.Refresh()
     })
 
     $exitMenuItem = $fileMenu.DropDownItems.Add("Exit")
@@ -82,7 +95,7 @@ function CreateMenuStrip {
     })
 
     # Help menu
-    $helpMenu = $menuStrip.Items.Add("Help")
+    $helpMenu = $menuStrip.Items.Add(" Help")
     $helpMenu.Padding = New-Object System.Windows.Forms.Padding(0)
     $helpMenuAbout = $helpMenu.DropDownItems.Add("About")
     $helpMenuAbout.Add_Click({
@@ -94,7 +107,7 @@ function CreateMenuStrip {
         param($sender, $e)
 
         $borderColor = [System.Drawing.Color]::Black
-        $borderWidth = 0.2
+        $borderWidth = 0.5
 
         $rect = $sender.ClientRectangle
         $rect.Width--

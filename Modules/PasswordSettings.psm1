@@ -16,10 +16,41 @@ function SetPasswordStrength {
     $dropDigits = CreateNumbersDropdown -x 250 -y 140 -width 40 -height 20 -minValue 6 -maxValue 10
 
     # Set the default selected index for each dropdown
-    $dropUpper.SelectedIndex = 0
-    $dropLower.SelectedIndex = 0
-    $dropSpecial.SelectedIndex = 0
-    $dropDigits.SelectedIndex = 0
+    if ($global:passDefaultUpperNum -ge 1 -and $global:passDefaultUpperNum -le 3) {
+        $dropUpper.SelectedIndex = $global:passDefaultUpperNum - 1
+    } 
+    else {
+        Write-Host "Maximum 3 Upper-Case letters. Check default settings." -ForegroundColor Red
+        return $false
+    }
+
+    if ($global:passDefaultLowerNum -ge 1 -and $global:passDefaultLowerNum -le 3) {
+        $dropLower.SelectedIndex = $global:passDefaultLowerNum - 1
+    }
+    else {
+        Write-Host "Maximum 3 Lower-Case letters. Check default settings." -ForegroundColor Red
+        return $false
+    }
+
+    if ($global:passDefaultSpecialsNum -ge 1 -and $global:passDefaultSpecialsNum -le 3) {
+        $dropSpecial.SelectedIndex = $global:passDefaultSpecialsNum - 1
+    }
+    else {
+        Write-Host "Minimum 1 & Maximum 3 Special characters. Check default settings." -ForegroundColor Red
+        return $false
+    }
+
+    if ($global:passDefaultDigitsNum -ge 6 -and $global:passDefaultDigitsNum -le 10) {
+        if ($global:passDefaultDigitsNum -eq 6) {$dropDigits.SelectedIndex = 0}
+        elseif ($global:passDefaultDigitsNum -eq 7) {$dropDigits.SelectedIndex = 1}
+        elseif ($global:passDefaultDigitsNum -eq 8) {$dropDigits.SelectedIndex = 2}
+        elseif ($global:passDefaultDigitsNum -eq 9) {$dropDigits.SelectedIndex = 3}
+        elseif ($global:passDefaultDigitsNum -eq 10) {$dropDigits.SelectedIndex = 4}
+    }
+    else {
+        Write-Host "Minimum 6 & Maximum 10 Digits. Check default settings." -ForegroundColor Red
+        return $false
+    }
 
     # Create checkbox for using initials
     $checkBoxUseInitials = CreateCheckbox -x 20 -y 180 -text "Include Initials"
@@ -69,6 +100,22 @@ function SetPasswordStrength {
     $SetPasswordForm.Controls.Add($checkBoxUseShuffle)
     $SetPasswordForm.Controls.Add($buttonSavePasswordSettings)
     $SetPasswordForm.Controls.Add($buttonCancelPassBuilder)
+
+    if ($global:showTooltips -eq $true) {
+        # Create tooltips for controls in SetPasswordStrength function
+        CreateToolTip -control $labelUpper -text "Minimum number of uppercase letters."
+        CreateToolTip -control $labelLower -text "Minimum number of lowercase letters."
+        CreateToolTip -control $labelSpecial -text "Minimum number of special characters."
+        CreateToolTip -control $labelDigits -text "Number of digits in the password."
+        CreateToolTip -control $dropUpper -text "Select the minimum number of uppercase letters."
+        CreateToolTip -control $dropLower -text "Select the minimum number of lowercase letters."
+        CreateToolTip -control $dropSpecial -text "Select the minimum number of special characters."
+        CreateToolTip -control $dropDigits -text "Select the number of digits in the password."
+        CreateToolTip -control $checkBoxUseInitials -text "Use AD user's initials in the password."
+        CreateToolTip -control $checkBoxUseShuffle -text "Shuffle the characters in the password."
+        CreateToolTip -control $buttonSavePasswordSettings -text "Save the password settings."
+        CreateToolTip -control $buttonCancelPassBuilder -text "Cancel and close the form."
+    }
 
     # Display the form
     $SetPasswordForm.ShowDialog()
