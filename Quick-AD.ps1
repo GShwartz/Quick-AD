@@ -1,6 +1,4 @@
 ﻿# 1. Complete Copy Groups for CSV users.
-# 2. Add a settings option to change the password's strength.
-
 
 # Import form modules
 Add-Type -AssemblyName System.Windows.Forms
@@ -18,21 +16,21 @@ $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 # Import local modules
 $modulePaths = @(
-    "Logger",           # Handles logging
-    "Lock",             # Provides functions for locking and unlocking resources
-    "Visuals",          # Handles visual components and UI elements
-    "ReEnableForm",     # Manages re-enabling functionality
-    "CopyGroups",       # Handles copying groups
-    "moveOUForm",       # Manages the Move OU forms
-    "CsvHandler",       # Handles CSV file operations
-    "ADHandler",        # Handles Active Directory operations
-    "BuildForm",        # Builds and configures forms
-    "MenuStrip",        # Builds the top menu
-    "PasswordBuilder"
+    "Logger",               # Handles logging
+    "Lock",                 # Provides functions for locking and unlocking resources
+    "Visuals",              # Handles visual components and UI elements
+    "ReEnableForm",         # Manages re-enabling functionality
+    "CopyGroups",           # Handles copying groups
+    "moveOUForm",           # Manages the Move OU forms
+    "CsvHandler",           # Handles CSV file operations
+    "ADHandler",            # Handles Active Directory operations
+    "BuildForm",            # Builds and configures forms
+    "MenuStrip",            # Builds the top menu
+    "PasswordSettings"      # Set the password's strength
 )
 
 foreach ($moduleName in $modulePaths) {
-    $modulePath = Join-Path $scriptDirectory "Modules\$moduleName.psm1"
+    $modulePath = Join-Path $PSScriptRoot "Modules\$moduleName.psm1"
     Import-Module $modulePath -Force
 }
 
@@ -74,11 +72,13 @@ function Main {
     $global:totalDigits = 6             # Default number of digits for random number generation
     $global:statusBarMessage = $null    # Message for the status bar
 
-    $global:passDefaultUpperNum = 1
-    $global:passDefaultLowerNum = 1
-    $global:passDefaultSpecialsNum = 1
-    $global:passDefaultDigitsNum = 1
-    $global:passDefaultIncludeInitials = $true
+    $global:specialChars = '!@#$'.ToCharArray()     # Define special characters for passwords
+    $global:passDefaultUpperNum = 1                 # Set the default number of uppercase letters in the password
+    $global:passDefaultLowerNum = 1                 # Set the default number of lowercase letters in the password
+    $global:passDefaultSpecialsNum = 1              # Set the default number of special characters in the password
+    $global:passDefaultDigitsNum = 6                # Set the default number of digits in the password
+    $global:passDefaultIncludeInitials = $true      # Specify whether to include initials in the password
+    $global:passShuffle = $false                    # Specify whether to shuffle the characters in the password
 
     # Set names for visual validations
     $adUserNamePictureName = "ADUsername"
@@ -143,26 +143,29 @@ function Main {
         else {
             HideMark $form $adComputerPictureName
             HideMark $form $csvPathPictureName
-            $buttonFindADUser.Enabled = $false
         }
 
+        # Manage FindComputer button
         if (-not [string]::IsNullOrEmpty($global:primaryUser) -and -not [string]::IsNullOrEmpty($textboxADUsername.Text)) {$buttonFindComputer.Enabled = $false}
+        
+        # Manage Generate Password button
         if (-not $buttonGeneratePassword.Enabled) {$buttonGeneratePassword.Enabled = $false} else {$buttonGeneratePassword.Enabled = $true}
         
+        # Manage the rest of the controllers
         if (-not [string]::IsNullOrEmpty($global:primaryUser)) {
-            if ($buttonCopyGroups.Enabled) {$buttonCopyGroups.Enabled = $true}
-            else {$buttonCopyGroups.Enabled = $false}
-
-            if ($buttonRemoveGroups.Enabled) {$buttonRemoveGroups.Enabled = $true}
-            else {$buttonRemoveGroups.Enabled = $false}
+            if ($buttonGeneratePassword.Enabled) {$buttonGeneratePassword.Enabled = $true} else {$buttonGeneratePassword.Enabled = $false }
+            if ($buttonCopyGroups.Enabled) {$buttonCopyGroups.Enabled = $true} else {$buttonCopyGroups.Enabled = $false}
+            if ($buttonRemoveGroups.Enabled) {$buttonRemoveGroups.Enabled = $true} else {$buttonRemoveGroups.Enabled = $false}
+            if ($buttonMoveOU.Enabled) {$buttonMoveOU.Enabled = $true} else {$buttonMoveOU.Enabled = $false}
         }
-        else {$buttonCopyGroups.Enabled = $false}
-
-        if (-not $buttonRemoveGroups.Enabled) {$buttonRemoveGroups.Enabled = $false}
-        else {$buttonRemoveGroups.Enabled = $true}
-
-        if (-not $buttonReEnable.Enabled) {$buttonReEnable.Enabled = $false}
-        else {$buttonReEnable.Enabled = $true}
+        else {
+            $buttonGeneratePassword.Enabled = $false
+            $buttonResetPassword.Enabled = $false
+            $buttonReEnable.Enabled = $false
+            $buttonCopyGroups.Enabled = $false
+            $buttonRemoveGroups.Enabled = $false
+            $buttonMoveOU.Enabled = $false
+        }
     })
 
     $textboxADComputer.Add_MouseDown({
