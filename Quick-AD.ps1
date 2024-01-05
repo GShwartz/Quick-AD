@@ -1,4 +1,4 @@
-﻿# 1. Complete Copy Groups for CSV users.
+﻿# 1. Complete button management on Copy Groups button after other processes.
 
 # Import form modules
 Add-Type -AssemblyName System.Windows.Forms
@@ -18,7 +18,7 @@ $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 $modulePaths = @(
     "Logger",               # Handles logging
     "Lock",                 # Provides functions for locking and unlocking resources
-    "Visuals",              # Handles visual components and UI elements
+    "Visuals",              # Handles visual components
     "ReEnableForm",         # Manages re-enabling functionality
     "CopyGroups",           # Handles copying groups
     "moveOUForm",           # Manages the Move OU forms
@@ -71,7 +71,9 @@ function Main {
     $global:isCSV = $false              # Flag indicating whether the input is a CSV file
     $global:totalDigits = 6             # Default number of digits for random number generation
     $global:statusBarMessage = $null    # Message for the status bar
+    $global:showTooltips = $true        # Flag to show/hide tooltips
 
+    # Set the Password Settings default variables
     $global:specialChars = '!@#$'.ToCharArray()     # Define special characters for passwords
     $global:passDefaultUpperNum = 1                 # Set the default number of uppercase letters in the password
     $global:passDefaultLowerNum = 1                 # Set the default number of lowercase letters in the password
@@ -116,22 +118,24 @@ function Main {
     $global:buttonRemoveGroups = CreateButton -text "Remove Groups" -x 310 -y 200 -width 120 -height 25 -enabled $false
     $global:buttonMoveOU = CreateButton -text "Move OU" -x 310 -y 240 -width 120 -height 25 -enabled $false
 
+    if ($global:showTooltips -eq $true) {
+        # Create tooltips
+        CreateToolTip -control $buttonFindADUser -text "Search for an Active Directory User account"
+        CreateToolTip -control $buttonFindComputer -text "Search for an Active Directory Computer account"
+        CreateToolTip -control $buttonBrowseForCSVFile -text "Browse for a CSV file with the 'Username' or 'ComputerName' headers"
+        CreateToolTip -control $buttonGeneratePassword -text "Generate passwords for selected user or CSV file"
+        CreateToolTip -control $buttonResetPassword -text "Reset password for selected user or CSV file"
+        CreateToolTip -control $buttonReEnable -text "Re-Enable User/Computer with an example AD account"
+        CreateToolTip -control $buttonCopyGroups -text "Copy groups from an example AD user account"
+        CreateToolTip -control $buttonRemoveGroups -text "Remove single/CSV user's group memberships"
+        CreateToolTip -control $buttonMoveOU -text "Relocate user/computer to OU by example account or from CSV file"
+    }
+
     # Call the function to create the status bar
     CreateStatusBar
 
     # Update statusbar message
     UpdateStatusBar "Ready" -color 'Black'
-
-    # Create tooltips
-    CreateToolTip -control $buttonFindADUser -text "Search for an Active Directory User account"
-    CreateToolTip -control $buttonFindComputer -text "Search for an Active Directory Computer account"
-    CreateToolTip -control $buttonBrowseForCSVFile -text "Browse for a CSV file with the 'Username' or 'ComputerName' headers"
-    CreateToolTip -control $buttonGeneratePassword -text "Generate passwords for selected user or CSV file"
-    CreateToolTip -control $buttonResetPassword -text "Reset password for selected user or CSV file"
-    CreateToolTip -control $buttonReEnable -text "Re-Enable User/Computer with an example AD account"
-    CreateToolTip -control $buttonCopyGroups -text "Copy groups from an example AD user account"
-    CreateToolTip -control $buttonRemoveGroups -text "Remove single/CSV user's group memberships"
-    CreateToolTip -control $buttonMoveOU -text "Relocate user/computer to OU by example account or from CSV file"
 
     # = = = = = = = EVENT HANDLERS = = = = = = = #
     $textboxADUsername.Add_MouseDown({
@@ -166,6 +170,8 @@ function Main {
             $buttonRemoveGroups.Enabled = $false
             $buttonMoveOU.Enabled = $false
         }
+
+        if ([string]::IsNullOrEmpty($textboxADUsername.Text)) {UpdateStatusBar "Ready" -color 'Black'}
     })
 
     $textboxADComputer.Add_MouseDown({
@@ -191,6 +197,8 @@ function Main {
             if ($buttonRemoveGroups.Enabled) {$buttonRemoveGroups.Enabled = $false}
             if ($buttonCopyGroups.Enabled) {$buttonCopyGroups.Enabled = $false}
         }
+
+        if ([string]::IsNullOrEmpty($textboxADComputer.Text)) {UpdateStatusBar "Ready" -color 'Black'}
     })
 
     $textboxADUsername.add_TextChanged({
@@ -513,8 +521,9 @@ function Main {
         # Disable the FindADUser button
         $buttonFindADUser.Enabled = $false
 
-        # Show Copy Groups form
-        ShowCopyGroupsForm
+        if (-not [string]::IsNullOrEmpty($textboxADUsername.Text)) {ShowCopyGroupsForm}
+        elseif (-not [string]::IsNullOrEmpty($textboxCSVFilePath.Text)) {ProcessCSVCopyGroups}
+
     })
 
     $buttonRemoveGroups.Add_Click({
