@@ -1,8 +1,6 @@
-# Import local modules
+# Import and load local modules
 $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
-
 $moduleNames = @("BuildForm", "CsvHandler", "Logger", "Visuals")
-
 foreach ($moduleName in $moduleNames) {
     $modulePath = Join-Path $scriptDirectory "$moduleName.psm1"
     Import-Module $modulePath -Force
@@ -13,17 +11,11 @@ function ShowReEnableForm {
     # Disable the main ReEnable button
     $global:buttonReEnable.Enabled = $false
 
-    # Create a new form for re-enabling a user
+    # Create the re-enable form
     $reEnableForm = CreateCanvas "Re-Enable" -x 250 -y 150
     $reEnableForm.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
-
-    # Create a label for entering the AD username
     $labelUsername = CreateLabel -text "Example User Name" -x 10 -y 10 -width 120 -height 20
-
-    # Create a textbox for AD username input
     $textboxUsername = CreateTextbox -x 10 -y 30 -width 120 -height 10 -readOnly $false
-
-    # Create a 'Re-Enable' button
     $buttonReEnableForm = CreateButton -text "Re-Enable" -x 10 -y 60 -width 70 -height 25 -enabled $false
     $buttonReEnableForm.Add_Click({
         $global:buttonFindADUser.Enabled = $false
@@ -38,14 +30,8 @@ function ShowReEnableForm {
 
             # Acquire the lock
             if (AcquireLock) {
-                try {
-                    # Send AD request to find and check the example user
-                    $userCheckup = FindADUser $exampleADuser
-                
-                } finally {
-                    # Release the lock when done (even if an error occurs)
-                    ReleaseLock
-                }
+                try {$userCheckup = FindADUser $exampleADuser} 
+                finally {ReleaseLock}
             }
         
             if ($null -ne $userCheckup) {
@@ -53,7 +39,7 @@ function ShowReEnableForm {
                     # User is enabled, check if it's locked out
                     if (IsUserLockedOut $userCheckup.SamAccountName) {
                         # Update statusbar message
-                        UpdateStatusBar "User '$exampleADuser' is locked-out." -color 'DarkOrange'
+                        UpdateStatusBar "User '$exampleADuser' is locked-out." -color 'Black'
 
                         # User is locked out
                         $unlockAccountResult = [System.Windows.Forms.MessageBox]::Show("User '$exampleADuser' is locked. Do you want to unlock the account?", "User Locked", [System.Windows.Forms.MessageBoxButtons]::YesNoCancel, [System.Windows.Forms.MessageBoxIcon]::Question)
@@ -73,13 +59,14 @@ function ShowReEnableForm {
                             # Log the start of script execution
                             LogScriptExecution -logPath $global:logFilePath -action "Unlocked user: '$($userCheckup.SamAccountName)'" -userName $env:USERNAME
 
-                        } elseif ($unlockAccountResult -eq [System.Windows.Forms.DialogResult]::Cancel) {
+                        } 
+                        elseif ($unlockAccountResult -eq [System.Windows.Forms.DialogResult]::Cancel) {
                             # Enable the Re-Enable & Cancel buttons
                             $buttonReEnableForm.Enabled = $true
                             $buttonCancelReEnable.Enabled = $true
 
                             # Update statusbar message
-                            UpdateStatusBar "Unlocked skipped on user: '$exampleADuser'." -color 'DarkOrange'
+                            UpdateStatusBar "Unlocked skipped on user: '$exampleADuser'." -color 'Black'
 
                             # Log the start of script execution
                             LogScriptExecution -logPath $global:logFilePath -action "Cancel Unlock for '$($userCheckup.SamAccountName)'." -userName $env:USERNAME
@@ -87,10 +74,12 @@ function ShowReEnableForm {
                     }
                     
                     $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
-                    Write-Host ""
-                    Write-Host "======================================================"
-                    Write-Host "$($dateTime) | Re-Enabling '$($global:primaryUser.SamAccountName)' with '$($exampleADuser)'..."
-                    Write-Host "======================================================"
+                    Write-Host "$($dateTime) | " -NoNewline
+                    Write-Host "Re-Enabling " -NoNewline -ForegroundColor Cyan
+                    Write-Host "'$($global:primaryUser.SamAccountName)' " -NoNewline
+                    Write-Host "with " -NoNewline -ForegroundColor Cyan
+                    Write-Host "'$($exampleADuser)'" -NoNewline
+                    Write-Host "..." -ForegroundColor Cyan
 
                     # Perform the re-enable action
                     Enable-AdAccount -Identity $global:primaryUser.SamAccountName
@@ -101,17 +90,24 @@ function ShowReEnableForm {
                     # Move the AD user to Example user OU
                     $isMoved = MoveUserToOU -exampleDisName $userCheckup.DistinguishedName -primaryDisName $global:primaryUser.DistinguishedName
                     if ($isMoved -eq $true) {
-                        $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
-                        HideMark $form "ADUsername"
-
-                        # Show summery in console
-                        Write-Host "======================================================"
-                        Write-Host "($dateTime) | User '$($global:primaryUser.SamAccountName)' Re-Enabled with '$($exampleADuser)'."
-                        Write-Host "======================================================"
+                        # Manage visuals
+                        HideMark $global:form "ADUsername"
 
                         # Log action
                         LogScriptExecution -logPath $global:logFilePath -action "Re-Enabled user: '$($global:primaryUser.SamAccountName)'." -userName $env:USERNAME
+                        
+                        # Update statusbar message
+                        UpdateStatusBar "User '$($global:primaryUser.SamAccountName)' has been re-enabled." -color 'Black'
 
+                        # Display results
+                        $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                        Write-Host "($dateTime) | " -NoNewline
+                        Write-Host "User " -NoNewline -ForegroundColor Green
+                        Write-Host "'$($global:primaryUser.SamAccountName)' " -NoNewline 
+                        Write-Host "Re-Enabled with " -NoNewline -ForegroundColor Green
+                        Write-Host "'$($exampleADuser)'."
+                        [System.Windows.Forms.MessageBox]::Show("User '$($global:primaryUser.SamAccountName)' has been re-enabled.", "Information", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                        
                         # Manage buttons
                         $buttonFindADUser.Enabled = $true
                         $buttonResetPassword.Enabled = $false
@@ -120,25 +116,16 @@ function ShowReEnableForm {
                         $buttonCopyGroups.Enabled = $false
                         $buttonRemoveGroups.Enabled = $false
                         $buttonMoveOU.Enabled = $false
-                        
-                        HideMark $global:form "ADUsername"
 
-                        # Update statusbar message
-                        UpdateStatusBar "User '$($global:primaryUser.SamAccountName)' has been re-enabled." -color 'Black'
-
-                        # Show Summery dialog box
-                        [System.Windows.Forms.MessageBox]::Show("User '$($global:primaryUser.SamAccountName)' has been re-enabled.", "Information", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-                        
                         # Close the Re-Enable form
                         $reEnableForm.Close()
-
                         return $true
                     }
                     else {
                         return $isMoved
                     }
-
-                } else {
+                } 
+                else {
                     $buttonReEnableForm.Enabled = $false
                     $buttonCancelReEnable.Enabled = $true
                     HideMark $global:form "ADUsername"
@@ -149,54 +136,68 @@ function ShowReEnableForm {
                     # Update statusbar message
                     UpdateStatusBar "The user '$($userCheckup.SamAccountName)' is disabled." -color 'Red'
 
-                    # User is disabled
+                    # Display results
+                    $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                    Write-Host "$($dateTime) | " -NoNewline
+                    Write-Host "The user " -NoNewline -ForegroundColor Red
+                    Write-Host "'$($exampleADuser)' " -NoNewline
+                    Write-Host "is disabled." -ForegroundColor Red
                     [System.Windows.Forms.MessageBox]::Show("User '$($userCheckup.SamAccountName)' is disabled.", "User Disabled", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
                     
                     # Manage buttons
-                    $buttonFindADUser.Enabled = $false
-                    $buttonResetPassword.Enabled = $false
-                    $buttonReEnableForm.Enabled = $false
-                    $buttonGeneratePassword.Enabled = $false
-                    $buttonCopyGroups.Enabled = $false
-                }
+                    $global:buttonFindADUser.Enabled = $false
+                    $global:buttonResetPassword.Enabled = $false
+                    $global:buttonReEnableForm.Enabled = $false
+                    $global:buttonGeneratePassword.Enabled = $false
+                    $global:buttonCopyGroups.Enabled = $false
+                    $global:buttonRemoveGroups.Enabled = $false
+                    $global:buttonMoveOU.Enabled = $false
 
-            } else {
+                    return $false
+                }
+            } 
+            else {
                 # Update statusbar message
                 UpdateStatusBar "The user '$($exampleADuser) was not found." -color 'Red'
 
-                $global:buttonFindADUser.Enabled = $false
+                # Display results
+                $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                Write-Host "$($dateTime) | " -NoNewline
+                Write-Host "The user " -NoNewline -ForegroundColor Red
+                Write-Host "'$($exampleADuser)' " -NoNewline
+                Write-Host "was not found." -ForegroundColor Red
                 [System.Windows.Forms.MessageBox]::Show("The user '$($exampleADuser) was not found.", "ShowReEnableForm: User Not Found", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
                 
-                # Disable the Re-Enable button and enable the cancel button
+                # Manage buttons
+                $global:buttonFindADUser.Enabled = $false
                 $buttonReEnableForm.Enabled = $false
                 $buttonCancelReEnable.Enabled = $true
 
-                return 
+                return $false
             }
-
-        } catch {
+        } 
+        catch {
             # Update statusbar message
             UpdateStatusBar "Error: $($_.Exception.Message)." -color 'Red'
 
-            # Handle any other errors that may occur
+            # Display results
+            $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+            Write-Host "$($dateTime) | " -NoNewline
+            Write-Host "Error: " -ForegroundColor Red
+            Write-Host "$($_.Exception.Message)" -ForegroundColor Red
             [System.Windows.Forms.MessageBox]::Show("Error: $($_.Exception.Message)", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
             
-            # Disable the Re-Enable button and close the re-enable form
+            # Manage buttons
             $global:buttonReEnableForm.Enabled = $false
             $reEnableForm.Close()
             
-            return
+            return $false
         }
     })
 
     # Add TextChanged event handler to the textbox
     $textboxUsername.add_TextChanged({
-        if ([string]::IsNullOrWhiteSpace($textboxUsername.Text)) {
-            $buttonReEnableForm.Enabled = $false
-
-        } else {
-            $buttonReEnableForm.Enabled = $true
-        }
+        if ([string]::IsNullOrWhiteSpace($textboxUsername.Text)) {$buttonReEnableForm.Enabled = $false} else {$buttonReEnableForm.Enabled = $true}
     })
 
     # Create a 'Cancel' button
@@ -205,6 +206,9 @@ function ShowReEnableForm {
         # Enable the main ReEnable button
         $global:buttonReEnable.Enabled = $true
         
+        # Update statusbar message
+        UpdateStatusBar "Re-Enable canceled." -color 'Black'
+
         $reEnableForm.Close()
         $global:buttonFindADUser.Focus()
 
@@ -218,6 +222,6 @@ function ShowReEnableForm {
     $reEnableForm.Controls.Add($buttonReEnableForm)
     $reEnableForm.Controls.Add($buttonCancelReEnable)
 
-    # Show the re-enable form
+    # Show the form
     $reEnableForm.ShowDialog()
 }

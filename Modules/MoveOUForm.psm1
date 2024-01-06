@@ -243,11 +243,7 @@ function ShowMoveOUForm {
                     if ($null -ne $ouNames) {
                         # Create a form
                         $formList = CreateCanvas "OU Selection" -x 400 -y 300
-
-                        # Create ListBox
                         $listBox = CreateListBox -name "OUListBox" -width 350 -height 200 -x 20 -y 20 -items $ouNames
-
-                        # Create Select button
                         $buttonSelect = CreateButton -text "Select" -x 20 -y 230 -width 80 -height 25 -enabled $false
                         $buttonSelect.Add_Click({
                             if ($null -ne $listBox.SelectedItem) {
@@ -284,7 +280,8 @@ function ShowMoveOUForm {
                                 $moveOUForm.Close()
                                 $global:buttonMoveOU.Focus()
 
-                            } else {
+                            } 
+                            else {
                                 # Update statusbar message
                                 UpdateStatusBar "No item selected." -color 'Yellow'
                                 Write-Host "No item selected." -ForegroundColor Yellow
@@ -293,12 +290,21 @@ function ShowMoveOUForm {
 
                         # Add a Hover event for the ListBox
                         $listBox.Add_MouseDown({
-                            $buttonSelect.Enabled = $true
+                            $tempSelection = $listBox.SelectedItem.ToString()
+                            if (-not [string]::IsNullOrEmpty($tempSelection) -or -not [string]::IsNullOrWhiteSpace($tempSelection)) {$buttonSelect.Enabled = $true}
+                            else {$buttonSelect.Enabled = $false}
+                        })
+
+                        $buttonCancelList = CreateButton -text "Cancel" -x 300 -y 230 -width 70 -height 25 -enabled $true
+                        $buttonCancelList.Add_Click({
+                            $formList.Close()
+                            $formList.Dispose()
                         })
 
                         # Add controls to the form
                         $formList.Controls.Add($listBox)
                         $formList.Controls.Add($buttonSelect)
+                        $formList.Controls.Add($buttonCancelList)
 
                         # Show the form
                         $formList.ShowDialog()
@@ -417,12 +423,10 @@ function ShowMoveOUForm {
                         return $false
                     }
                 }
-                else {
-                    HandleComputer
-                }
+                else {HandleComputer}
             }
-            
-        } catch {
+        } 
+        catch {
             # Log the start of script execution
             LogScriptExecution -logPath $global:logFilePath -action "Error: $($_)" -userName $env:USERNAME
 
@@ -443,11 +447,12 @@ function ShowMoveOUForm {
         $buttonMoveOU.Enabled = $true
         $buttonFindADUser.Enabled = $false
         
-        $moveOUForm.Close()
-        $buttonMoveOU.Focus()
-
         # Log the start of script execution
         LogScriptExecution -logPath $logFilePath -action "Move OU canceled." -userName $env:USERNAME
+
+        $buttonMoveOU.Focus()
+        $moveOUForm.Close()
+        $moveOUForm.Dispose()
     })
 
     # Add the form controllers
@@ -476,71 +481,180 @@ function ShowMoveOUForm {
 
 # Function to display the CSV User OU relocation form
 function ShowCSVMoveUserOUForm {
-    # Create a new form for User CSV
-    $csvUserMoveOUForm = New-Object System.Windows.Forms.Form
-    $csvUserMoveOUForm.Text = "Move OU"
-    $csvUserMoveOUForm.Size = New-Object System.Drawing.Size(280, 150)
+    # Create a new form for copying groups
+    $csvUserMoveOUForm = CreateCanvas "Move OU" -x 280 -y 220
     $csvUserMoveOUForm.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
     $csvUserMoveOUForm.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedSingle
 
+    if ([string]::IsNullOrEmpty($global:textboxADComputer.Text)) {
+        # Create a label for entering the AD username
+        $labelUsername = CreateLabel -text "Example AD username" -x 10 -y 10 -width 150 -height 20
+        $csvUserMoveOUForm.Controls.Add($labelUsername)
+    }
+    elseif ([string]::IsNullOrEmpty($global:textboxADUsername.Text)) {
+        # Create a label for entering the AD Computer
+        $labelExampleComputer = CreateLabel -text "Example AD Computer" -x 10 -y 10 -width 200 -height 20
+        $csvUserMoveOUForm.Controls.Add($labelExampleComputer)
+    }
+    
     # Create a label for entering the AD username
     $labelUsername = CreateLabel -text "Example AD username" -x 10 -y 10 -width 150 -height 20
 
     # Create a textbox for the Example input
     $textboxExample = CreateTextbox -x 10 -y 30 -width 200 -height 20 -readOnly $false
     
-    # Add TextChanged event handler to the textbox
-    $textboxExample.add_TextChanged({
-        if ([string]::IsNullOrWhiteSpace($textboxOUName.Text) -and [string]::IsNullOrEmpty($textboxExample.Text)) {
-            $buttonMove.Enabled = $false
-        } else {
-            $buttonMove.Enabled = $true
-        }
-    })
+    # Create a label for OU Name
+    $labelOUName = CreateLabel -text "OU Name" -x 10 -y 60 -width 200 -height 20
+
+    # Create OU name textbox
+    $textboxOUName = CreateTextbox -x 10 -y 80 -width 200 -height 20 -readOnly $false
 
     # Create the Move button
-    $buttonMove = CreateButton -text "Move OU" -x 10 -y 70 -width 70 -height 25 -enabled $false
-    $buttonMove.Add_Click({
+    $buttonMoveCSVUser = CreateButton -text "Move OU" -x 10 -y 130 -width 70 -height 25 -enabled $false
+    $buttonMoveCSVUser.Add_Click({
         if (AcquireLock) {
             try {
                 # Log action
                 LogScriptExecution -logPath $global:logFilePath -action "Move OU on users CSV file" -userName $env:USERNAME
 
-                $buttonMove.Enabled = $false
+                $buttonMoveCSVUser.Enabled = $false
                 $buttonCancelMoveOU.Enabled = $false
 
-                $example = $textboxExample.Text
-                $exampleUser = FindADUser $example
+                $selectedItem = $null
+                $ouName = $textboxOUName.Text
+                if (-not [string]::IsNullOrEmpty($ouName)) {
+                    # Fetch OUs
+                    $ouNames = Get-ADOrganizationalUnit -Filter {(Name -like $ouName)} -Properties Name
+                    if ($null -ne $ouNames) {
+                        # Create a form
+                        $formList = CreateCanvas "OU Selection" -x 400 -y 300
+                        $listBox = CreateListBox -name "OUListBox" -width 350 -height 200 -x 20 -y 20 -items $ouNames
+                        $buttonSelect = CreateButton -text "Select" -x 20 -y 230 -width 80 -height 25 -enabled $false
+                        $buttonSelect.Add_Click({
+                            $buttonSelect.Enabled = $false
 
-                if (-not [string]::IsNullOrEmpty($exampleUser)) {
-                    # Retrieve the DistinguishedName
-                    $exampleDistinguishedName = $exampleUser.DistinguishedName
-                    
-                    # Handle user CSV data with the example DistinguishedName
-                    HandleMoveOUCSV $exampleDistinguishedName
+                            if (-not [string]::IsNullOrEmpty($listBox.SelectedItem.ToString())) {
+                                $selectedItem = $listBox.SelectedItem.ToString()
+                                
+                                $csvPath = $textboxCSVFilePath.Text
+                                $csvData = Import-Csv -Path $csvPath
 
-                    $csvUserMoveOUForm.Close()
-                    return $true
+                                foreach ($row in $csvData) {
+                                    # Access the "Username" column from each row
+                                    $username = $row.Username
+                                    if (-not [string]::IsNullOrEmpty($username)) {
+                                        # Get the AD user parameters
+                                        $user = FindADUser $username
+                            
+                                        # Check if the user was found
+                                        if (-not [string]::IsNullOrEmpty($user)) {
+                                            if ($user.Enabled) {
+                                                # Retrieve the distinguished name
+                                                $userDistinguishedName = $user.DistinguishedName
+                                                
+                                                # Relocate user to designated OU
+                                                Move-ADObject -Identity $userDistinguishedName -TargetPath $selectedItem
+                            
+                                                # Display summery in console
+                                                $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                                                Write-Host "$($dateTime) | " -NoNewline 
+                                                Write-Host "User " -NoNewline -ForegroundColor Green
+                                                Write-Host "'$($username)' " -NoNewline 
+                                                Write-Host "relocated to " -NoNewline -ForegroundColor Green
+                                                Write-Host "$($selectedItem)." 
+                            
+                                                # Log action
+                                                LogScriptExecution -logPath $global:logFilePath -action "User $($username) relocated to $($selectedItem)." -userName $env:USERNAME
+                                            }
+                                            else {
+                                                $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                                                Write-Host "$($dateTime) | " -NoNewline 
+                                                Write-Host "User " -NoNewline -ForegroundColor Red
+                                                Write-Host "'$($username)' " -NoNewline
+                                                Write-Host "is disabled. " -NoNewline -ForegroundColor Red
+                                                Write-Host "skipping..." -ForegroundColor Yellow
+                            
+                                                # Log action
+                                                LogScriptExecution -logPath $global:logFilePath -action "User '$($username)' is disabled. skipping" -userName $env:USERNAME
+                                            }
+                                        }
+                            
+                                        # Apply timer to prevent DOS
+                                        Start-Sleep -Milliseconds 300
+                                    }
+                                }
+                            }
+
+                            $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                            Write-Host "$($dateTime) | " -NoNewline
+                            Write-Host "CSV users relocated successfully." -ForegroundColor Green
+
+                            # Log action
+                            LogScriptExecution -logPath $global:logFilePath -action "CSV users relocated successfully." -userName $env:USERNAME
+
+                            # Update statusbar message
+                            UpdateStatusBar "CSV users relocated successfully." -color 'Black'
+
+                            $formList.Close()
+                            $formList.Dispose()
+                            $csvUserMoveOUForm.Close()
+                            $csvUserMoveOUForm.Dispose()
+                        })
+
+                        # Add a Hover event for the ListBox
+                        $listBox.Add_MouseDown({
+                            $buttonSelect.Enabled = $true
+                        })
+
+                        $buttonCancelList = CreateButton -text "Cancel" -x 300 -y 230 -width 70 -height 25 -enabled $true
+                        $buttonCancelList.Add_Click({
+                            $formList.Close()
+                            $formList.Dispose()
+                        })
+
+                        # Add controls to the form
+                        $formList.Controls.Add($listBox)
+                        $formList.Controls.Add($buttonSelect)
+                        $formList.Controls.Add($buttonCancelList)
+
+                        # Show the form
+                        $formList.ShowDialog()
+                    }
                 }
                 else {
-                    # Write error to console
-                    $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
-                    Write-Host "$($dateTime) | " -NoNewline 
-                    Write-Host "Example user " -NoNewline -ForegroundColor Red
-                    Write-Host "'$($example)' " -NoNewline -ForegroundColor White
-                    Write-Host "not found." -ForegroundColor Red
+                    $example = $textboxExample.Text
+                    $exampleUser = FindADUser $example
 
-                    # Disable the move button
-                    $buttonMove.Enabled = $false
-                    $buttonCancelMoveOU.Enabled = $true
+                    if (-not [string]::IsNullOrEmpty($exampleUser)) {
+                        # Retrieve the DistinguishedName
+                        $exampleDistinguishedName = $exampleUser.DistinguishedName
+                        
+                        # Handle user CSV data with the example DistinguishedName
+                        HandleMoveOUCSV $exampleDistinguishedName
 
-                    # Update statusbar message
-                    UpdateStatusBar "Example user '$($example)' not found." -color 'Red'
+                        $csvUserMoveOUForm.Close()
+                        return $true
+                    }
+                    else {
+                        # Write error to console
+                        $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                        Write-Host "$($dateTime) | " -NoNewline 
+                        Write-Host "Example user " -NoNewline -ForegroundColor Red
+                        Write-Host "'$($example)' " -NoNewline -ForegroundColor White
+                        Write-Host "not found." -ForegroundColor Red
 
-                    # Display Error dialog
-                    [System.Windows.Forms.MessageBox]::Show("Example user '$($example)' not found.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                        # Disable the move button
+                        $buttonMove.Enabled = $false
+                        $buttonCancelMoveOU.Enabled = $true
 
-                    return $false
+                        # Update statusbar message
+                        UpdateStatusBar "Example user '$($example)' not found." -color 'Red'
+
+                        # Display Error dialog
+                        [System.Windows.Forms.MessageBox]::Show("Example user '$($example)' not found.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+
+                        return $false
+                    }
                 }
             }
             finally {
@@ -550,26 +664,55 @@ function ShowCSVMoveUserOUForm {
     })
 
     # Create a 'Cancel' button
-    $buttonCancelMoveOU = CreateButton -text "Cancel" -x 180 -y 70 -width 70 -height 25 -enabled $true
+    $buttonCancelMoveOU = CreateButton -text "Cancel" -x 180 -y 130 -width 70 -height 25 -enabled $true
     $buttonCancelMoveOU.Add_Click({
-        $buttonMoveOU.Enabled = $true
+        $buttonMoveCSVUser.Enabled = $true
         $buttonFindADUser.Enabled = $false
         
         $csvUserMoveOUForm.Close()
-        $buttonMoveOU.Focus()
+        $buttonMoveCSVUser.Focus()
 
         # Log the start of script execution
         LogScriptExecution -logPath $logFilePath -action "Move OU canceled." -userName $env:USERNAME
     })
 
+    # Add TextChanged event handler to the textbox
+    $textboxExample.add_TextChanged({
+        if ([string]::IsNullOrWhiteSpace($textboxOUName.Text) -and [string]::IsNullOrEmpty($textboxExample.Text)) {
+            $buttonMoveCSVUser.Enabled = $false
+        } else {
+            $buttonMoveCSVUser.Enabled = $true
+        }
+    })
+
+    # Add TextChanged event handler to the textbox
+    $textboxOUName.add_TextChanged({
+        if ([string]::IsNullOrWhiteSpace($textboxOUName.Text) -and [string]::IsNullOrEmpty($textboxExample.Text)) {
+            $buttonMoveCSVUser.Enabled = $false
+
+        } else {
+            $buttonMoveCSVUser.Enabled = $true
+        }
+
+        if (-not [string]::IsNullOrEmpty($textboxExample.Text)) {
+            $textboxExample.Text = ""
+        }
+    })
+
+    # Event handler for mouse down on OU Name textbox
+    $textboxOUName.Add_MouseDown({
+        $textboxExample.Text = ""
+    })
+
     $csvUserMoveOUForm.Controls.Add($labelUsername)
     $csvUserMoveOUForm.Controls.Add($textboxExample)
-    $csvUserMoveOUForm.Controls.Add($buttonMove)
+    $csvUserMoveOUForm.Controls.Add($labelOUName)
+    $csvUserMoveOUForm.Controls.Add($textboxOUName)
+    $csvUserMoveOUForm.Controls.Add($buttonMoveCSVUser)
     $csvUserMoveOUForm.Controls.Add($buttonCancelMoveOU)
 
     # Show the Copy Groups form
     $csvUserMoveOUForm.ShowDialog()
-
 }
 
 # Function to display the CSV User OU relocation form

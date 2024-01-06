@@ -1068,115 +1068,114 @@ function ProcessCSVCopyGroups {
         }
         Write-Host ""
 
-        # Loop through each user in the CSV
-        foreach ($csvUser in $csvData) {
-            # Find the user in AD
-            $adUser = FindADUser $csvUser.Username
-            if ([string]::IsNullOrEmpty($adUser)) {
-                $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
-                Write-Host "$($dateTime) | " -NoNewline
-                Write-Host "CSV user " -NoNewline -ForegroundColor Red
-                Write-Host "'$($csvUser.Username)' " -NoNewline
-                Write-Host "not found." -ForegroundColor Red
+        if (AcquireLock) {
+            try {
+                # Loop through each user in the CSV
+                foreach ($csvUser in $csvData) {
+                    # Find the user in AD
+                    $adUser = FindADUser $csvUser.Username
+                    if ([string]::IsNullOrEmpty($adUser)) {
+                        $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                        Write-Host "$($dateTime) | " -NoNewline
+                        Write-Host "CSV user " -NoNewline -ForegroundColor Red
+                        Write-Host "'$($csvUser.Username)' " -NoNewline
+                        Write-Host "not found." -ForegroundColor Red
 
-                # Log action
-                LogScriptExecution -logPath $global:logFilePath -action "CSV user '$($csvUser.Username)' was not found." -userName $env:USERNAME
+                        # Log action
+                        LogScriptExecution -logPath $global:logFilePath -action "CSV user '$($csvUser.Username)' was not found." -userName $env:USERNAME
 
-                # Update statusbar message
-                UpdateStatusBar "CSV user '$($csvUser.Username)' was not found." -color 'Red'
+                        # Update statusbar message
+                        UpdateStatusBar "CSV user '$($csvUser.Username)' was not found." -color 'Red'
 
-                continue
-            }
+                        continue
+                    }
 
-            # Check if the CSV user is Disabled
-            if (-not $adUser.Enabled) {
-                $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
-                Write-Host "$($dateTime) | " -NoNewline
-                Write-Host "CSV user " -NoNewline -ForegroundColor Yellow
-                Write-Host "'$($adUser.SamAccountName)' " -NoNewline 
-                Write-Host "is disabled. Waiting for instructions..." -ForegroundColor Yellow
+                    # Check if the CSV user is Disabled
+                    if (-not $adUser.Enabled) {
+                        $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                        Write-Host "$($dateTime) | " -NoNewline
+                        Write-Host "CSV user " -NoNewline -ForegroundColor Yellow
+                        Write-Host "'$($adUser.SamAccountName)' " -NoNewline 
+                        Write-Host "is disabled. Waiting for instructions..." -ForegroundColor Yellow
 
-                # Log action
-                LogScriptExecution -logPath $global:logFilePath -action "CSV user '$($adUser.SamAccountName)' is disabled. Waiting for instructions..." -userName $env:USERNAME
+                        # Log action
+                        LogScriptExecution -logPath $global:logFilePath -action "CSV user '$($adUser.SamAccountName)' is disabled. Waiting for instructions..." -userName $env:USERNAME
 
-                # Update statusbar message
-                UpdateStatusBar "CSV user '$($adUser.SamAccountName)' is disabled. Waiting for instructions..." -color 'Black'
+                        # Update statusbar message
+                        UpdateStatusBar "CSV user '$($adUser.SamAccountName)' is disabled. Waiting for instructions..." -color 'Black'
 
-                # Confirm action with user
-                $confirmResult = [System.Windows.Forms.MessageBox]::Show("User '$($adUser.SamAccountName)' is disabled. Re-Enable?", "Re-Enable", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question)
-                if ($confirmResult -eq [System.Windows.Forms.DialogResult]::Yes) {
-                    $global:primaryUser = $adUser
+                        # Confirm action with user
+                        $confirmResult = [System.Windows.Forms.MessageBox]::Show("User '$($adUser.SamAccountName)' is disabled. Re-Enable?", "Re-Enable", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question)
+                        if ($confirmResult -eq [System.Windows.Forms.DialogResult]::Yes) {
+                            $global:primaryUser = $adUser
 
-                    # Release the script lock to allow the re-enable process
-                    ReleaseLock
+                            # Release the script lock to allow the re-enable process
+                            ReleaseLock
 
-                    # Display the Re-Enable form
-                    ShowReEnableForm
+                            # Display the Re-Enable form
+                            ShowReEnableForm
 
-                    $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
-                    Write-Host "$($dateTime) | " -NoNewline
-                    Write-Host "CSV user " -NoNewline -ForegroundColor Cyan
-                    Write-Host "'$($adUser.SamAccountName)' " -NoNewline
-                    Write-Host "has been re-enabled successfully." -ForegroundColor Cyan
+                            # Update statusbar message
+                            UpdateStatusBar "CSV user '$($adUser.SamAccountName)' has been re-enabled successfully." -color 'Black'
+                        }
+                        else {
+                            $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                            Write-Host "$($dateTime) | " -NoNewline
+                            Write-Host "Skipped Re-Enable on " -NoNewline -ForegroundColor Cyan
+                            Write-Host "'$($adUser.SamAccountName)'."
 
-                    # Update statusbar message
-                    UpdateStatusBar "CSV user '$($adUser.SamAccountName)' has been re-enabled successfully." -color 'Black'
+                            # Update statusbar message
+                            UpdateStatusBar "Skipped Re-Enable on '$($adUser.SamAccountName)'." -color 'Black'
+
+                            # Log action
+                            LogScriptExecution -logPath $global:logFilePath -action "Skipped Re-Enable on '$($adUser.SamAccountName)'." -userName $env:USERNAME
+
+                            continue
+                        }
+                    }
+
+                    # Copy groups from example user to CSV user
+                    $success, $message = CopyGroups -adUsername "$($adUser.SamAccountName)" -exampleADuser "$($exampleUser.SamAccountName)" -isCSVuser $true
+
+                    if (-not $success) {
+                        if ($message -match "Example user is not a member of any group") {
+                            $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                            Write-Host "$($dateTime) | " -NoNewline
+                            Write-Host "Example user " -NoNewline -ForegroundColor Red
+                            Write-Host "'$($exampleUser.SamAccountName)' " -NoNewline
+                            Write-Host "is not a member of any group. terminating." -ForegroundColor Red
+
+                            # Update statusbar message
+                            UpdateStatusBar "Example user '$($csvCopyExample)' is not a member of any group. Copy Groups terminated." -color 'Red'
+
+                            # Log action
+                            LogScriptExecution -logPath $global:logFilePath -action "Example user '$($csvCopyExample)' is not a member of any group. Copy Groups terminated." -userName $env:USERNAME
+
+                            return $false
+                        }
+                        else {
+                            Write-Host "Error: $message" -ForegroundColor Red
+                            return $false
+                        }
+                    }
+                    else {
+                        $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                        Write-Host "$($dateTime) | " -NoNewline
+                        Write-Host "CSV user " -NoNewline -ForegroundColor Green
+                        Write-Host "'$($adUser.SamAccountName)' " -NoNewline
+                        Write-Host "joined groups." -ForegroundColor Green
+
+                        # Update statusbar message
+                        UpdateStatusBar "CSV user '$($adUser.SamAccountName)' joined groups." -color 'Black'
+
+                        # Log action
+                        LogScriptExecution -logPath $global:logFilePath -action "CSV user '$($adUser.SamAccountName)' joined groups." -userName $env:USERNAME
+                    }
+
+                    Start-Sleep -Milliseconds 300
                 }
-                else {
-                    $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
-                    Write-Host "$($dateTime) | " -NoNewline
-                    Write-Host "Skipped Re-Enable on " -NoNewline -ForegroundColor Cyan
-                    Write-Host "'$($adUser.SamAccountName)'."
-
-                    # Update statusbar message
-                    UpdateStatusBar "Skipped Re-Enable on '$($adUser.SamAccountName)'." -color 'Black'
-
-                    # Log action
-                    LogScriptExecution -logPath $global:logFilePath -action "Skipped Re-Enable on '$($adUser.SamAccountName)'." -userName $env:USERNAME
-
-                    continue
-                }
             }
-
-            # Copy groups from example user to CSV user
-            $success, $message = CopyGroups -adUsername "$($adUser.SamAccountName)" -exampleADuser "$($exampleUser.SamAccountName)" -isCSVuser $true
-
-            if (-not $success) {
-                if ($message -match "Example user is not a member of any group") {
-                    $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
-                    Write-Host "$($dateTime) | " -NoNewline
-                    Write-Host "Example user " -NoNewline -ForegroundColor Red
-                    Write-Host "'$($exampleUser.SamAccountName)' " -NoNewline
-                    Write-Host "is not a member of any group. terminating." -ForegroundColor Red
-
-                    # Update statusbar message
-                    UpdateStatusBar "Example user '$($csvCopyExample)' is not a member of any group. Copy Groups terminated." -color 'Red'
-
-                    # Log action
-                    LogScriptExecution -logPath $global:logFilePath -action "Example user '$($csvCopyExample)' is not a member of any group. Copy Groups terminated." -userName $env:USERNAME
-
-                    return $false
-                }
-                else {
-                    Write-Host "Error: $message" -ForegroundColor Red
-                    return $false
-                }
-            }
-            else {
-                $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
-                Write-Host "$($dateTime) | " -NoNewline
-                Write-Host "CSV user " -NoNewline -ForegroundColor Green
-                Write-Host "'$($adUser.SamAccountName)' " -NoNewline
-                Write-Host "joined groups." -ForegroundColor Green
-
-                # Update statusbar message
-                UpdateStatusBar "CSV user '$($adUser.SamAccountName)' joined groups." -color 'Black'
-
-                # Log action
-                LogScriptExecution -logPath $global:logFilePath -action "CSV user '$($adUser.SamAccountName)' joined groups." -userName $env:USERNAME
-            }
-
-            Start-Sleep -Milliseconds 300
+            finally {ReleaseLock}
         }
 
         $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
@@ -1216,5 +1215,4 @@ function ProcessCSVCopyGroups {
     $csvCGForm.Controls.Add($buttonCancelCG)
 
     $csvCGForm.ShowDialog()
-
 }

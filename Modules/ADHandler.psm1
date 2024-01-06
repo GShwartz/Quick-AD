@@ -259,30 +259,15 @@ function CopyGroups {
     $userGroups = $userGroups | Where-Object { $_ -ne 'Domain Users' }
     
     if ($userGroups.Count -eq 0) {
+        # Set message
         $message = "Example user is not a member of any group."
+
+        # Log action
+        LogScriptExecution -logPath $global:logFilePath -action "Example user is not a member of any group." -userName $env:USERNAME
 
         # Update statusbar message
         UpdateStatusBar "$($message)" -color 'Red'
         return $false, $message
-    }
-
-    if (-not $isCSVuser) {
-        $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
-        Write-Host ""
-        for ($i = 1; $i -le 40; $i++) {
-            $currentColor = if ($i % 2 -eq 0) { 'Blue' } else { 'White' }
-            Write-Host "=" -ForegroundColor $currentColor -NoNewline
-            Write-Host " " -NoNewline
-        }
-        Write-Host ""
-        Write-Host "$($dateTime) | " -NoNewline
-        Write-Host "Copying groups from $($exampleADuser)..."
-        for ($i = 1; $i -le 40; $i++) {
-            $currentColor = if ($i % 2 -eq 0) { 'Blue' } else { 'White' }
-            Write-Host "=" -ForegroundColor $currentColor -NoNewline
-            Write-Host " " -NoNewline
-        }
-        Write-Host ""
     }
 
     # Add the user to the groups of the specified $adUsername
@@ -333,25 +318,18 @@ function CopyGroups {
             ForEach-Object { (Get-ADGroup $_).Name }
 
         $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
-        Write-Host ""
-        for ($i = 1; $i -le 40; $i++) {
-            $currentColor = if ($i % 2 -eq 0) { 'Blue' } else { 'White' }
-            Write-Host "=" -ForegroundColor $currentColor -NoNewline
-            Write-Host " " -NoNewline
-        }
-        Write-Host ""
         Write-Host "$($dateTime) | " -NoNewline
-        Write-Host "User '$($adUsername)' is a member of the following groups:"
-        foreach ($group in $userGroups) {
-            Write-Host " *** $group" -ForegroundColor Cyan
-        }
-        Write-Host ""
+        Write-Host "Copy Groups completed for user " -NoNewLine -ForegroundColor Green 
+        Write-Host "'$($adUsername)'."
 
         $message = "Copy Groups completed for user: '$($adUsername)'."
         
         # Update statusbar message
         UpdateStatusBar "$($message)" -color 'Black'
     }
+
+    # Log action
+    LogScriptExecution -logPath $global:logFilePath -action "Copy Groups completed." -userName $env:USERNAME
 
     $global:buttonFindADUser.Enabled = $true
     return $true, $message
@@ -373,6 +351,9 @@ function RemoveGroups($username) {
             # Update statusbar message
             UpdateStatusBar "The user account '$($username)' is not a member of any group." -color 'Red'
 
+            # Log action
+            LogScriptExecution -logPath $global:logFilePath -action "The user account '$($username)' is not a member of any group." -userName $env:USERNAME
+
             return $null
         }
 
@@ -383,6 +364,8 @@ function RemoveGroups($username) {
         foreach ($group in $groupsToRemove) {
             try {
                 Remove-ADGroupMember -Identity $group -Members $username -Confirm:$false -ErrorAction Stop
+
+                # Display results
                 $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
                 Write-Host "$($dateTime) | " -NoNewline
                 Write-Host "User " -NoNewline -ForegroundColor Green
@@ -393,9 +376,11 @@ function RemoveGroups($username) {
                 # Log action
                 LogScriptExecution -logPath $logFilePath -action "$($username) has been removed from $($group)." -userName $env:USERNAME
 
+                # Take a break
                 Start-Sleep -Milliseconds 300
-
-            } catch {
+            } 
+            catch {
+                # Display results
                 $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
                 Write-Host "$($dateTime) | " -NoNewline
                 Write-Host "Error removing user " -NoNewline -ForegroundColor Red
@@ -416,9 +401,14 @@ function RemoveGroups($username) {
         }
         # Update statusbar message
         UpdateStatusBar "User '$($username)' has been removed from all groups." -color 'Black'
+
+        # Log action
+        LogScriptExecution -logPath $global:logFilePath -action "User '$($username)' has been removed from all groups." -userName $env:USERNAME
+
         return $true
 
     } catch {
+        # Display results
         $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
         Write-Host "$($dateTime) | " -NoNewline
         Write-Host "Error retrieving groups for user " -NoNewline -ForegroundColor Red 
@@ -488,6 +478,7 @@ function FindADComputer($computer) {
 
 # Function to manage the FindADuser click
 function ManageFindADUserEvent {
+    # Disable the Find User button
     $global:buttonFindADUser.Enabled = $false
 
     # Get the AD user from the textbox
@@ -501,27 +492,26 @@ function ManageFindADUserEvent {
                 # Log action
                 LogScriptExecution -logPath $global:logFilePath -action "User '$($global:primaryUser.SamAccountName)' is disabled." -userName $env:USERNAME
 
-                # Update buttons
-                $global:buttonFindADUser.Enabled = $false
-                $global:buttonReEnable.Enabled = $true
-
                 # Hide the green V checkmark
                 HideMark $form "ADUsername"
                 HideMark $form "ADComputer"
                 HideMark $form "CSVPath"
                 DrawXmark $Form 130 50 "ADUsername"
 
+                # Update statusbar message
+                UpdateStatusBar "User account '$($global:textboxADUsername.Text)' is Disabled." -color 'Red'
+
+                # Display results
                 $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
                 Write-Host "$($dateTime) | " -NoNewline
                 Write-Host "User " -NoNewline -ForegroundColor Red
                 Write-Host "'$($global:primaryUser.SamAccountName)' " -NoNewline
                 Write-Host "is disabled." -ForegroundColor Red
-
-                # Update statusbar message
-                UpdateStatusBar "User account '$($global:textboxADUsername.Text)' is Disabled." -color 'Red'
-
-                # Show the User is disabled dialog box
                 [System.Windows.Forms.MessageBox]::Show("User '$($global:primaryUser.SamAccountName)' is disabled.", "User Disabled", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+
+                # Manage buttons
+                $global:buttonFindADUser.Enabled = $false
+                $global:buttonReEnable.Enabled = $true
 
                 return $false
             }
@@ -570,8 +560,8 @@ function ManageFindADUserEvent {
 
             return $false
         }
-
-    } else {
+    } 
+    else {
         # Display dialog box
         [System.Windows.Forms.MessageBox]::Show("Please enter an AD username.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         
@@ -608,16 +598,15 @@ function ManageFindComputerEvent {
             HideMark $form "CSVPath"
             DrawXmark $form 130 140 "ADComputer" 
 
+            # Update statusbar message
+            UpdateStatusBar "Computer account: '$($global:textboxADComputer.Text)' is Disabled." -color 'Red'
+
+            # Display results
             $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
             Write-Host "$($dateTime) | " -NoNewline
             Write-Host "Computer " -NoNewline -ForegroundColor Red
             Write-Host "'$($global:textboxADComputer.Text)' " -NoNewline
             Write-Host "is disabled." -ForegroundColor Red
-
-            # Update statusbar message
-            UpdateStatusBar "Computer account: '$($global:textboxADComputer.Text)' is Disabled." -color 'Red'
-
-            # Show the User is disabled dialog box
             [System.Windows.Forms.MessageBox]::Show("Computer '$($global:primaryComputer.Name)' is disabled", "Computer Disabled", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
 
             $global:buttonReEnable.Focus()
@@ -650,22 +639,21 @@ function ManageFindComputerEvent {
         # Log action
         LogScriptExecution -logPath $global:logFilePath -action "Computer '$($global:textboxADComputer.Text)' not found" -userName $env:USERNAME
 
+        # Update statusbar message
+        UpdateStatusBar "Computer account: '$($global:textboxADComputer.Text)' was not found." -color 'Red'
+
+        # Display results
         $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
         Write-Host "$($dateTime) | " -NoNewline
         Write-Host "Computer " -NoNewline -ForegroundColor Red
         Write-Host "'$($global:textboxADComputer.Text)' " -NoNewline
         Write-Host "not found." -ForegroundColor Red
-
-        # Update statusbar message
-        UpdateStatusBar "Computer account: '$($global:textboxADComputer.Text)' was not found." -color 'Red'
-
+        [System.Windows.Forms.MessageBox]::Show("Computer '$($global:textboxADComputer.Text)' was not found", "Computer Not Found", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        
         # Disable buttons
         $global:buttonRemoveGroups.Enabled = $false
         $global:buttonMoveOU.Enabled = $false
 
-        # Show the User is disabled dialog box
-        [System.Windows.Forms.MessageBox]::Show("Computer '$($global:textboxADComputer.Text)' was not found", "Computer Not Found", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-        
         # Focus of AD Computer textbox
         $global:textboxADComputer.Focus()
 

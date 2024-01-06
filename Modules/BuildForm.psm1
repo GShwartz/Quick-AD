@@ -143,19 +143,31 @@ function CreateStatusBar {
     $global:statusBarTextBox = New-Object System.Windows.Forms.TextBox
     $statusBarTextBox.Multiline = $false
     $statusBarTextBox.Anchor = [System.Windows.Forms.AnchorStyles]::Bottom -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right
-    $statusBarTextBox.Width = 470
     $statusBarTextBox.Text = "Ready"
     $statusBarTextBox.ForeColor = [System.Drawing.Color]::Black
     $statusBarTextBox.BackColor = [System.Drawing.Color]::Wheat
     $statusBarTextBox.BorderStyle = [System.Windows.Forms.BorderStyle]::FixedSingle
-    $statusBarTextBox.ScrollBars = [System.Windows.Forms.ScrollBars]::Horizontal
+    $statusBarTextBox.ScrollBars = [System.Windows.Forms.ScrollBars]::Horizontal 
     $statusBarTextBox.ReadOnly = $true
+
+    # Add an event handler for resizing the form
+    $form.add_Resize({
+        $statusBarTextBox.Width = $form.Width - 15
+    })
 
     # Add the textbox to the form
     $form.Controls.Add($statusBarTextBox)
     $statusBar.Panels.Add((New-Object System.Windows.Forms.StatusBarPanel))
     $statusBar.Controls.Add($statusBarTextBox)
+
+    # Allow marking the text to activate the horizontal scrollbar
+    $statusBarTextBox.Add_MouseDown({
+        if ($_.Button -eq [System.Windows.Forms.MouseButtons]::Left) {
+            $statusBarTextBox.SelectAll()
+        }
+    })
 }
+
 
 
 
