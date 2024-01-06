@@ -1,4 +1,4 @@
-﻿# 1. Complete button management on Copy Groups button after other processes.
+﻿# 1. Complete MoveOU for CSV by listBox selection.
 
 # Import form modules
 Add-Type -AssemblyName System.Windows.Forms
@@ -384,6 +384,13 @@ function Main {
                 }
             }
         }
+
+        # Manage buttons
+        $buttonFindADUser.Enabled = $false
+        $buttonGeneratePassword.Enabled = $true
+        $buttonCopyGroups.Enabled = $true
+        if ($buttonRemoveGroups.Enabled) {$buttonRemoveGroups.Enabled = $true} else {$buttonRemoveGroups.Enabled = $false}
+        $buttonMoveOU.Enabled = $true
     })
 
     $buttonReEnable.Add_Click({
@@ -536,6 +543,8 @@ function Main {
                     $buttonRemoveGroups.Enabled = $false
                     [System.Windows.Forms.MessageBox]::Show("User '$($global:primaryUser.SamAccountName)' has been removed from all groups.", "Remove Groups", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
                 }
+
+                
             }
         }
         elseif (-not [string]::IsNullOrEmpty($textboxCSVFilePath.Text)) {
@@ -595,8 +604,11 @@ function Main {
             }
         }
 
-        # Disable buttons
+        # Manage buttons
         $buttonFindADUser.Enabled = $false
+        $buttonGeneratePassword.Enabled = $true
+        $buttonCopyGroups.Enabled = $true
+        $buttonMoveOU.Enabled = $true
     })
 
     # Add controls to form
