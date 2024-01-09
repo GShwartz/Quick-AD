@@ -1,4 +1,4 @@
-﻿# 1. Complete MoveOU for CSV by listBox selection.
+﻿# 1. Complete MoveOU for CSV by listBox selection. - what happens if computer not found.
 
 # Import form modules
 Add-Type -AssemblyName System.Windows.Forms
@@ -118,7 +118,7 @@ function Main {
     $global:buttonRemoveGroups = CreateButton -text "Remove Groups" -x 310 -y 200 -width 120 -height 25 -enabled $false
     $global:buttonMoveOU = CreateButton -text "Move OU" -x 310 -y 240 -width 120 -height 25 -enabled $false
 
-    if ($global:showTooltips -eq $true) {
+    if ($global:showTooltips) {
         # Create tooltips
         CreateToolTip -control $buttonFindADUser -text "Search for an Active Directory User account"
         CreateToolTip -control $buttonFindComputer -text "Search for an Active Directory Computer account"
@@ -600,15 +600,8 @@ function Main {
 
             if ($userCondition -or $computerCondition) {
                 ShowMoveOUForm
-                $buttonMoveOU.Enabled = $true
             }
         }
-
-        # Manage buttons
-        $buttonFindADUser.Enabled = $false
-        $buttonGeneratePassword.Enabled = $true
-        $buttonCopyGroups.Enabled = $true
-        $buttonMoveOU.Enabled = $true
     })
 
     # Add controls to form
