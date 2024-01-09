@@ -1,9 +1,9 @@
 # Import local modules
 $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-$csvHandlerModulePath = Join-Path $scriptDirectory "CsvHandler.psm1"
-$loggerModulePath = Join-Path $scriptDirectory "Logger.psm1"
-$buildFormModulePath = Join-Path $scriptDirectory "BuildForm.psm1"
+$csvHandlerModulePath = Join-Path $PSScriptRoot "CsvHandler.psm1"
+$loggerModulePath = Join-Path $PSScriptRoot "Logger.psm1"
+$buildFormModulePath = Join-Path $PSScriptRoot "BuildForm.psm1"
 
 Import-Module $csvHandlerModulePath -Force
 Import-Module $loggerModulePath -Force

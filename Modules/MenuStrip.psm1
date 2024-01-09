@@ -3,7 +3,7 @@ $scriptDirectory = [System.IO.Path]::GetDirectoryName($MyInvocation.MyCommand.De
 $passBuilderModuleFileName = "PasswordSettings.psm1"
 
 # Combine the script directory and file names to get path
-$moduleFileName = Join-Path -Path $scriptDirectory -ChildPath $passBuilderModuleFileName
+$moduleFileName = Join-Path -Path $PSScriptRoot -ChildPath $passBuilderModuleFileName
 
 # Import Module
 Import-Module $moduleFileName -Force

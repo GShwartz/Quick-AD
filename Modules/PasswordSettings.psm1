@@ -1,3 +1,4 @@
+# Function that sets the password strength
 function SetPasswordStrength {
     # Define the form
     $SetPasswordForm = CreateCanvas "Password Settings" -x 400 -y 350

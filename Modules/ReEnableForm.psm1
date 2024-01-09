@@ -2,7 +2,7 @@
 $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 $moduleNames = @("BuildForm", "CsvHandler", "Logger", "Visuals")
 foreach ($moduleName in $moduleNames) {
-    $modulePath = Join-Path $scriptDirectory "$moduleName.psm1"
+    $modulePath = Join-Path $PSScriptRoot "$moduleName.psm1"
     Import-Module $modulePath -Force
 }
 

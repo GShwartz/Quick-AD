@@ -4,8 +4,8 @@ $loggerModuleFileName = "Logger.psm1"
 $visualsModule = "Visuals.psm1"
 
 # Combine the script directory and file names to get path
-$moduleFileName = Join-Path -Path $scriptDirectory -ChildPath $loggerModuleFileName
-$visualsFileName = Join-Path -Path $scriptDirectory -ChildPath $visualsModule
+$moduleFileName = Join-Path -Path $PSScriptRoot -ChildPath $loggerModuleFileName
+$visualsFileName = Join-Path -Path $PSScriptRoot -ChildPath $visualsModule
 
 # Import Module
 Import-Module $moduleFileName -Force

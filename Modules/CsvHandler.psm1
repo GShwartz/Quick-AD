@@ -11,7 +11,7 @@ $modulePaths = @(
 )
 
 foreach ($moduleName in $modulePaths) {
-    $modulePath = Join-Path $scriptDirectory "$moduleName.psm1"
+    $modulePath = Join-Path $PSScriptRoot "$moduleName.psm1"
     Import-Module $modulePath -Force
 }
 
