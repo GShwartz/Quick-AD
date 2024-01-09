@@ -15,7 +15,7 @@ foreach ($moduleName in $modulePaths) {
     Import-Module $modulePath -Force
 }
 
-# Function to perform Checkups & csv updates
+# Function to perform Checks & update CSV file while loading
 function PerformComputerActions($computerNames, $csvData) {
     for ($i = 0; $i -lt $computerNames.Count; $i++) {
         $computerName = $computerNames[$i]
@@ -96,8 +96,6 @@ function PerformComputerActions($computerNames, $csvData) {
 
         # Check if the computer account is locked out
         $isLockedOut = ($computer."msDS-User-Account-Control-Computed" -band 0x00100000) -eq 0x00100000
-
-        # Output the result
         if ($isLockedOut) {
             $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
             Write-Host "$($dateTime) | " -NoNewline
@@ -106,7 +104,7 @@ function PerformComputerActions($computerNames, $csvData) {
             Write-Host "is locked out." -ForegroundColor Yellow
 
             # Update statusbar message
-            UpdateStatusBar "Computer account '$($computerName)' is locked out." -color 'DarkOrange'
+            UpdateStatusBar "Computer account '$($computerName)' is locked out." -color 'Red'
 
             # Confirm re-enable action with user
             $confirmReEnable = [System.Windows.Forms.MessageBox]::Show("Computer '$($computer.Name)' is disabled. Re-Enable?", "Re-Enable", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question)

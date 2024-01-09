@@ -11,6 +11,7 @@ function CreateCanvas {
     $form.Size = New-Object System.Drawing.Size($x, $y)
     $form.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
     $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedSingle
+    $form.MaximizeBox = $false
 
     return $form
 }
@@ -167,6 +168,74 @@ function CreateStatusBar {
         }
     })
 }
+
+# Function to create a listbox
+function ShowListBoxForm {
+    param (
+        [string]$formTitle,
+        [string]$listBoxName,
+        [int]$formWidth,
+        [int]$formHeight,
+        [int]$listBoxWidth,
+        [int]$listBoxHeight,
+        [int]$cancelX,
+        [int]$cancelY,
+        [array]$items
+    )
+
+    $OUSelectionForm = CreateCanvas $formTitle -x $formWidth -y $formHeight
+    $listBox = CreateListBox -name $listBoxName -width $listBoxWidth -height $listBoxHeight -x 20 -y 20 -items $items
+    $buttonSelect = CreateButton -text "Select" -x 20 -y ($listBoxHeight + 30) -width 80 -height 25 -enabled $false
+    $selectedItem = $null
+
+    $buttonSelect.Add_Click({
+        if ($null -ne $listBox.SelectedItem) {
+            $script:selectedItem = $listBox.SelectedItem.ToString()
+            $OUSelectionForm.Close()
+        }
+        else {
+            # Update statusbar message
+            UpdateStatusBar "No item selected." -color 'Yellow'
+
+            $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+            Write-Host "$($dateTime) | " -NoNewline
+            Write-Host "No item selected." -NoNewline -ForegroundColor Yellow
+        }
+    })
+
+    # Add a Hover event for the ListBox - Enable 'Select' button only if an item is selected.
+    $listBox.Add_MouseDown({
+        try {
+            $tempSelection = $listBox.SelectedItem.ToString()
+        }
+        catch {
+            Write-Host "No item selected." -ForegroundColor Yellow
+        }
+
+        if (-not [string]::IsNullOrEmpty($tempSelection) -or -not [string]::IsNullOrWhiteSpace($tempSelection)) {
+            $buttonSelect.Enabled = $true
+        }
+        else {
+            $buttonSelect.Enabled = $false
+        }
+    })
+
+    $buttonCancel = CreateButton -text "Cancel" -x $cancelX -y $cancelY -width 70 -height 25 -enabled $true
+    $buttonCancel.Add_Click({
+        $OUSelectionForm.Close()
+    })
+
+    # Add controls to the form
+    $OUSelectionForm.Controls.Add($listBox)
+    $OUSelectionForm.Controls.Add($buttonSelect)
+    $OUSelectionForm.Controls.Add($buttonCancel)
+
+    # Show the form
+    $OUSelectionForm.ShowDialog()
+    return $script:selectedItem
+}
+
+
 
 
 
