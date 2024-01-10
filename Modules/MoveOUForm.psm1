@@ -1,7 +1,4 @@
 # Import local modules
-$scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
-
-# Import local modules
 $modulePaths = @(
     "Logger",           # Handles logging
     "Lock",             # Manages lock file
@@ -9,7 +6,6 @@ $modulePaths = @(
     "ADHandler",        # Handles Active Directory operations
     "BuildForm"         # Builds and configures forms
 )
-
 foreach ($moduleName in $modulePaths) {
     $modulePath = Join-Path $PSScriptRoot "$($moduleName).psm1"
     Import-Module $modulePath -Force
@@ -43,32 +39,30 @@ function HandleUser {
             if ($null -ne $userCheckup) {
                 # Relocate user to designated OU
                 MoveUserToOU -exampleDisName $userCheckup.DistinguishedName -primaryDisName $global:primaryUser.DistinguishedName
-
-                # Enable buttons
-                $buttonFindADUser.Enabled = $true
-                $buttonGeneratePassword.Enabled = $true
-                $buttonMove.Enabled = $false
-                $buttonMoveOU.Enabled = $false
                 
                 # Log the start of script execution
                 LogScriptExecution -logPath $logFilePath -action "'$($global:textboxADUsername.Text)' has been relocated to $($userCheckup.DistinguishedName)." -userName $env:USERNAME
 
                 # Update statusbar message
                 UpdateStatusBar "'$($global:textboxADUsername.Text)' has been relocated to '$($userCheckup.DistinguishedName)'." -color 'Black'
-
-                # Close the Copy Groups form
-                $moveOUForm.Close()
-
+                
+                # Display results
                 $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
                 Write-Host "$($dateTime) | " -NoNewline
                 Write-Host "The user '" -NoNewline -ForegroundColor Green
                 Write-Host "$($global:primaryUser.SamAccountName)' " -NoNewline 
                 Write-Host "was reloacted to " -NoNewline -ForegroundColor Green
                 Write-Host "$($userCheckup.DistinguishedName)"
-                    
-                # Show Summary dialog box
-                # [System.Windows.Forms.MessageBox]::Show("'$($global:textboxADUsername.Text)' relocated successfully.", "Move OU", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                [System.Windows.Forms.MessageBox]::Show("'$($global:textboxADUsername.Text)' relocated successfully.", "Move OU", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+
+                # Enable buttons
+                $buttonFindADUser.Enabled = $true
+                $buttonGeneratePassword.Enabled = $true
+                $buttonMove.Enabled = $false
                 $global:buttonMoveOU.Enabled = $true
+
+                # Close the Copy Groups form
+                $moveOUForm.Close()
             }
             else {
                 # Log the start of script execution
@@ -118,11 +112,11 @@ function HandleComputer {
             # Send AD request to find and check the example user
             $computer = FindADComputer $exampleADComputer
             if ($computer) {
-                # Relocate user to designated OU
-                MoveUserToOU -exampleDisName $computer.DistinguishedName -primaryDisName $global:primaryComputer.DistinguishedName
-                
                 # Disable the main Move OU button
                 $buttonMoveOU.Enabled = $false
+
+                # Relocate user to designated OU
+                MoveUserToOU -exampleDisName $computer.DistinguishedName -primaryDisName $global:primaryComputer.DistinguishedName
 
                 # Log Action
                 LogScriptExecution -logPath $logFilePath -action "'$($global:primaryComputer.Name)' has been relocated to $($computer.DistinguishedName)." -userName $env:USERNAME
@@ -131,15 +125,13 @@ function HandleComputer {
                 Write-Host "$($dateTime) | " -NoNewline 
                 Write-Host "Computer '" -NoNewline -ForegroundColor Green
                 Write-Host "$($global:primaryComputer.Name)' " -NoNewline 
-                Write-Host "was reloacted to " -NoNewline -ForegroundColor Green
+                Write-Host "has been reloacted to " -NoNewline -ForegroundColor Green
                 Write-Host "$($computer.DistinguishedName)"
+                [System.Windows.Forms.MessageBox]::Show("'$($global:primaryComputer.Name)' relocated successfully.", "Move OU", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
 
                 # Update statusbar message
                 UpdateStatusBar "'$($global:primaryComputer.Name)' relocated successfully." -color 'Black'
 
-                # Show Summary dialog box
-                #[System.Windows.Forms.MessageBox]::Show("'$($global:primaryComputer.Name)' relocated successfully.", "Move OU", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-                
                 # Manage buttons
                 $global:buttonMoveOU.Enabled = $true
                 $moveOUForm.Close()
@@ -261,7 +253,8 @@ function ShowMoveOUForm {
                 Write-Host "'$($currentPrimary.SamAccountName)' " -NoNewline 
                 Write-Host "was reloacted to " -NoNewline -ForegroundColor Green
                 Write-Host "$($selectedOU)"
-
+                [System.Windows.Forms.MessageBox]::Show("'$($currentPrimary.SamAccountName)' relocated successfully.", "Move OU", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                
                 # Update statusbar message
                 UpdateStatusBar "User '$($currentPrimary.SamAccountName)' was relocated to $($selectedOU)" -color 'Black'
 
@@ -315,21 +308,24 @@ function ShowMoveOUForm {
 
                     $currentPrimary = FindADComputer $oldPrimary.Name
                     if (-not [string]::IsNullOrEmpty($global:primaryComputer)) {
+                        # Log action
+                        LogScriptExecution -logPath $logFilePath -action "Computer '$($global:primaryComputer.Name)' was relocated to $($selectedOU)" -userName $env:USERNAME
+                        
+                        # Display results
                         $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
                         Write-Host "$($dateTime) | " -NoNewline
                         Write-Host "Computer " -NoNewline -ForegroundColor Green
                         Write-Host "'$($currentPrimary.Name)' " -NoNewline 
                         Write-Host "was reloacted to " -NoNewline -ForegroundColor Green
                         Write-Host "$($selectedOU)"
-                        
-                        # Update statusbar message
-                        UpdateStatusBar "Computer '$($global:primaryComputer.Name)' was relocated to $($selectedOU)." -color 'Black'
+                        [System.Windows.Forms.MessageBox]::Show("'$($currentPrimary.Name)' relocated successfully.", "Move OU", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
 
-                        # Log action
-                        LogScriptExecution -logPath $logFilePath -action "Computer '$($global:primaryComputer.Name)' was relocated to $($selectedOU)" -userName $env:USERNAME
-                        
+                        # Update statusbar message
+                        UpdateStatusBar "Computer '$($currentPrimary.Name)' was relocated to $($selectedOU)." -color 'Black'
+
                         $global:buttonMoveOu.Enabled = $true
                         $moveOUForm.Close()
+                        $moveOUForm.Dispose()
                         return $true
                     }
                 }
@@ -376,32 +372,32 @@ function ShowMoveOUForm {
             $buttonMoveOU.Enabled = $true
         }
         elseif (-not [string]::IsNullOrEmpty($usertext)){
-            $global:buttonFindADUser.Enabled = $false
-            $global:buttonGeneratePassword.Enabled = $true
-            $global:buttonCopyGroups.Enabled = $true
-            $global:buttonMoveOU.Enabled = $true
+            $buttonFindADUser.Enabled = $false
+            $buttonGeneratePassword.Enabled = $true
+            $buttonCopyGroups.Enabled = $true
+            $buttonMoveOU.Enabled = $true
         }
         elseif (-not [string]::IsNullOrEmpty($csvText)) {
             # Read the first line of the CSV file to check the header
             $firstLine = Get-Content -Path $csvText -TotalCount 1
             if ($firstLine -match "Username") {
-                $global:buttonGeneratePassword.Enabled = $true
-                $global:buttonCopyGroups.Enabled = $true
-                $global:buttonMoveOU.Enabled = $true
+                $buttonGeneratePassword.Enabled = $true
+                $buttonCopyGroups.Enabled = $true
+                $buttonMoveOU.Enabled = $true
             }
             elseif ($firstLine -match "ComputerName") {
-                $global:buttonGeneratePassword.Enabled = $false
-                $global:buttonCopyGroups.Enabled = $false
-                $global:buttonRemoveGroups.Enabled = $false
-                $global:buttonMoveOU.Enabled = $true
+                $buttonGeneratePassword.Enabled = $false
+                $buttonCopyGroups.Enabled = $false
+                $buttonRemoveGroups.Enabled = $false
+                $buttonMoveOU.Enabled = $true
             }
             else {
-                $global:buttonGeneratePassword.Enabled = $false
-                $global:buttonCopyGroups.Enabled = $false
-                $global:buttonRemoveGroups.Enabled = $false
-                $global:buttonMoveOU.Enabled = $false
-                $global:buttonFindADUser.Enabled = $false
-                $global:buttonFindComputer.Enabled = $false
+                $buttonGeneratePassword.Enabled = $false
+                $buttonCopyGroups.Enabled = $false
+                $buttonRemoveGroups.Enabled = $false
+                $buttonMoveOU.Enabled = $false
+                $buttonFindADUser.Enabled = $false
+                $buttonFindComputer.Enabled = $false
             }
         }
 

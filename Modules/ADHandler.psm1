@@ -1,13 +1,8 @@
-# Get the directory of the script file
-$scriptDirectory = [System.IO.Path]::GetDirectoryName($MyInvocation.MyCommand.Definition)
+# Import modules
 $loggerModuleFileName = "Logger.psm1"
 $visualsModule = "Visuals.psm1"
-
-# Combine the script directory and file names to get path
 $moduleFileName = Join-Path -Path $PSScriptRoot -ChildPath $loggerModuleFileName
 $visualsFileName = Join-Path -Path $PSScriptRoot -ChildPath $visualsModule
-
-# Import Module
 Import-Module $moduleFileName -Force
 Import-Module $visualsFileName -Force
 
@@ -60,7 +55,6 @@ function GeneratePassword {
 
         if ($global:passShuffle) {
             $password = -join ($password.ToCharArray() | Get-Random -Count $password.Length)
-
         }
 
         # Copy the generated password to the clipboard
@@ -70,7 +64,12 @@ function GeneratePassword {
         # Update statusbar message
         UpdateStatusBar "Password generated for $($global:primaryUser.SamAccountName) & has been copied to the clipboard." -color 'Black'
         
-        # Display the generated password
+        # Display results
+        $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+        Write-Host "$($dateTime) | " -NoNewline
+        Write-Host "Password generated for " -NoNewline -ForegroundColor Green
+        Write-Host "'$($global:primaryUser.SamAccountName)' " -NoNewline
+        Write-Host "and has been copied to clipboard." -ForegroundColor Green
         [System.Windows.Forms.MessageBox]::Show("Generated Password: $password`n`nThe password has been copied to the clipboard.", "Password Generated", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
         
         # Build and return the password
@@ -91,7 +90,12 @@ function GeneratePassword {
         # Update statusbar message
         UpdateStatusBar "Password generated for $($global:primaryUser.SamAccountName) & has been copied to the clipboard." -color 'Black'
         
-        # Display the generated password
+        # Display results
+        $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+        Write-Host "$($dateTime) | " -NoNewline
+        Write-Host "Password generated for " -NoNewline -ForegroundColor Green
+        Write-Host "'$($global:primaryUser.SamAccountName)' " -NoNewline
+        Write-Host "and has been copied to clipboard." -ForegroundColor Green
         [System.Windows.Forms.MessageBox]::Show("Generated Password: $password`n`nThe password has been copied to the clipboard.", "Password Generated", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
         
         # Build and return the password
@@ -115,29 +119,49 @@ function ResetPassword {
             # Update statusbar message
             UpdateStatusBar "Password reset for '$($global:primaryUser.SamAccountName)' completed." -color 'Black'
 
+            # Display results
+            $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+            Write-Host "$($dateTime) | " -NoNewline
+            Write-Host "Password reset for " -NoNewline -ForegroundColor Green
+            Write-Host "'$($global:primaryUser.SamAccountName)' " -NoNewline
+            Write-Host "completed successfully." -ForegroundColor Green
+
             # Log action
             LogScriptExecution -logPath $global:logFilePath -action "Password reset for '$($global:primaryUser.SamAccountName)' completed." -userName $env:USERNAME
 
             return $true
         } 
         catch {
-            [System.Windows.Forms.MessageBox]::Show("Error while resetting the password for user '$($global:primary.SamAccountName)': $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-            
-            # Update statusbar message
-            UpdateStatusBar "Error while resetting the password for user '$($global:primary.SamAccountName)'. Check log." -color 'Red'
-
             # Log action
             LogScriptExecution -logPath $global:logFilePath -action "$($_)" -userName $env:USERNAME
             
+            # Update statusbar message
+            UpdateStatusBar "Error while resetting the password for user '$($global:primaryUser.SamAccountName)'. Check log." -color 'Red'
+
+            # Display results
+            $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+            Write-Host "$($dateTime) | " -NoNewline
+            Write-Host "Error while resetting the password for " -NoNewLine -ForegroundColor Red
+            Write-Host "'$($global:primaryUser.SamAccountName)': "
+            Write-Host "$($_)" -ForegroundColor Red
+            [System.Windows.Forms.MessageBox]::Show("Error while resetting the password for user '$($global:primaryUser.SamAccountName)': $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+
             return $false
         }
     }
     else {
+        # Log action
+        LogScriptExecution -logPath $global:logFilePath -action "$($_)" -userName $env:USERNAME
+
         # Update statusbar message
         UpdateStatusBar "AD user is missing." -color 'Red'
 
+        # Display results
+        $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+        Write-Host "$($dateTime) | " -NoNewline
+        Write-Host "AD user is missing." -ForegroundColor Red
         [System.Windows.Forms.MessageBox]::Show("AD user is missing.", "Generate Password: User Not Found", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-        return
+        return $false
     }
 }
 

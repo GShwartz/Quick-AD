@@ -12,6 +12,8 @@ function CreateCanvas {
     $form.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
     $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedSingle
     $form.MaximizeBox = $false
+    $form.Margin = '0,0,0,0'
+    $form.Padding = '0,0,0,0'
 
     return $form
 }

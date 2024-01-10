@@ -558,15 +558,14 @@ function GenerateCSVPasswords($path) {
                         # Check if Shuffle is ON
                         if ($global:passShuffle) {
                             $password = -join ($password.ToCharArray() | Get-Random -Count $password.Length)
-
                         }
 
                         # Copy the generated password to the clipboard
-                        $securePassword = ConvertTo-SecureString -String $password -AsPlainText -Force
-                        [System.Windows.Forms.Clipboard]::SetText([System.Runtime.InteropServices.Marshal]::PtrToStringUni([System.Runtime.InteropServices.Marshal]::SecureStringToGlobalAllocUnicode($securePassword)))
+                        #$securePassword = ConvertTo-SecureString -String $password -AsPlainText -Force
+                        #[System.Windows.Forms.Clipboard]::SetText([System.Runtime.InteropServices.Marshal]::PtrToStringUni([System.Runtime.InteropServices.Marshal]::SecureStringToGlobalAllocUnicode($securePassword)))
 
                         # Update statusbar message
-                        UpdateStatusBar "Password generated for $($global:primaryUser.SamAccountName) & has been copied to the clipboard." -color 'Black'
+                        UpdateStatusBar "Password generated for $($global:primaryUser.SamAccountName)." -color 'Black'
                     }
                     else {
                         $password = $upperLetters + $lowerLetters + $specials + $digits
@@ -578,11 +577,11 @@ function GenerateCSVPasswords($path) {
                         }
 
                         # Copy the generated password to the clipboard
-                        $securePassword = ConvertTo-SecureString -String $password -AsPlainText -Force
-                        [System.Windows.Forms.Clipboard]::SetText([System.Runtime.InteropServices.Marshal]::PtrToStringUni([System.Runtime.InteropServices.Marshal]::SecureStringToGlobalAllocUnicode($securePassword)))
+                        #$securePassword = ConvertTo-SecureString -String $password -AsPlainText -Force
+                        #[System.Windows.Forms.Clipboard]::SetText([System.Runtime.InteropServices.Marshal]::PtrToStringUni([System.Runtime.InteropServices.Marshal]::SecureStringToGlobalAllocUnicode($securePassword)))
 
                         # Update statusbar message
-                        UpdateStatusBar "Password generated for $($global:primaryUser.SamAccountName) & has been copied to the clipboard." -color 'Black'
+                        UpdateStatusBar "Password generated for $($global:primaryUser.SamAccountName)" -color 'Black'
                     }
 
                     $_.Password = $password.ToString()
@@ -622,10 +621,13 @@ function GenerateCSVPasswords($path) {
                 Write-Host "$($_)" -ForegroundColor Red
 
                 # Log action
-                LogScriptExecution -logPath $global:logFilePath -action "Error: $($_.Exception.Message)." -userName $env:USERNAME
+                LogScriptExecution -logPath $global:logFilePath -action "Error: $($_)." -userName $env:USERNAME
 
                 # Update statusbar message
-                UpdateStatusBar "An error occurred while processing '$($username)'." -color 'Red'
+                UpdateStatusBar "An error occurred while processing '$($username)'. Check log." -color 'Red'
+
+                # Display error dialog box
+                [System.Windows.Forms.MessageBox]::Show("An error occurred while processing '$($username)': $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
             }
         }
 
@@ -648,7 +650,7 @@ function GenerateCSVPasswords($path) {
         LogScriptExecution -logPath $global:logFilePath -action "User '$($username)' not found." -userName $env:USERNAME
 
         # Update statusbar message
-        UpdateStatusBar "Error while processing the CSV file: $_." -color 'Red'
+        UpdateStatusBar "Error while processing the CSV file. Check log." -color 'Red'
     }
 }
 
