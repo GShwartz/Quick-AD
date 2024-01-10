@@ -1,4 +1,4 @@
-﻿# 1. Complete MoveOU for CSV by listBox selection. - what happens if computer not found.
+﻿# 1. Complete MoveOU for CSV by listBox selection. - add output to not found/add not found error dialogboxes.
 
 # Import form modules
 Add-Type -AssemblyName System.Windows.Forms
@@ -6,7 +6,7 @@ Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System
 
 # Set the console code page to UTF-8
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+#[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 # Reset the console to its default encoding using Out-Default
 $null = Out-Default
@@ -90,9 +90,6 @@ function Main {
 
     # Create the main form
     $global:form = CreateCanvas "QUICK-AD" -x 470 -y 380
-    $form.MaximizeBox = $false
-    $form.Margin = '0,0,0,0'
-    $form.Padding = '0,0,0,0'
 
     # Create a top menu strip
     $global:menuStrip = CreateMenuStrip
@@ -318,18 +315,11 @@ function Main {
             GeneratePassword $global:totalDigits
 
             # Manage buttons
-            if (-not $buttonMoveOU.Enabled) {
-                $buttonResetPassword.Enabled = $true
-                $buttonGeneratePassword.Enabled = $true
-                $buttonCopyGroups.Enabled = $true
-                $buttonMoveOU.Enabled = $false
-            }
-            else {
-                $buttonResetPassword.Enabled = $true
-                $buttonGeneratePassword.Enabled = $true
-                $buttonCopyGroups.Enabled = $true
-                $buttonMoveOU.Enabled = $true
-            }
+            $buttonGeneratePassword.Enabled = $true
+            $buttonResetPassword.Enabled = $true
+            $buttonCopyGroups.Enabled = $true
+            if ($buttonRemoveGroups.Enabled) {$buttonRemoveGroups.Enabled = $true} else {$buttonRemoveGroups.Enabled = $false}
+            $buttonMoveOU.Enabled = $false
 
         } else {
             # Grab the text from the csv filepath input field
@@ -348,15 +338,11 @@ function Main {
             }
 
             # Manage buttons
-            $buttonResetPassword.Enabled = $true
             $buttonGeneratePassword.Enabled = $true
-            $buttonCopyGroups.Enabled = $false
-            if (-not $buttonMoveOU.Enabled) {
-                $buttonMoveOU.Enabled = $false
-            }
-            else {
-                $buttonMoveOU.Enabled = $true
-            }
+            $buttonResetPassword.Enabled = $true
+            $buttonCopyGroups.Enabled = $true
+            if ($buttonRemoveGroups.Enabled) {$buttonRemoveGroups.Enabled = $true} else {$buttonRemoveGroups.Enabled = $false}
+            $buttonMoveOU.Enabled = $true
         }
     })
 
@@ -432,7 +418,7 @@ function Main {
                         UpdateStatusBar "Computer '$($compName)' has been re-enabled." -color 'Black'
 
                         # Display a success dialog box
-                        [System.Windows.Forms.MessageBox]::Show("$($compName) has been re-enabled.", "Success", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                        [System.Windows.Forms.MessageBox]::Show("Computer $($compName) has been re-enabled.", "Success", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
 
                         $buttonFindComputer.Enabled = $true
                         $buttonFindComputer.Focus()
