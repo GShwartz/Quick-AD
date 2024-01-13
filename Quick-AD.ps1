@@ -1,4 +1,5 @@
 ﻿# 1. Complete MoveOU for CSV by listBox selection. - add output to not found/add not found error dialogboxes.
+# 2. Add locked-out validation to where it's missing.
 
 # Import form modules
 Add-Type -AssemblyName System.Windows.Forms
@@ -312,7 +313,7 @@ function Main {
         $userText = $textboxADUsername.Text
         if ($userText -eq $global:primaryUser.SamAccountName -and $textboxCSVFilePath.Text -eq "") {
             # Generate password
-            GeneratePassword $global:totalDigits
+            GeneratePassword
 
             # Manage buttons
             $buttonGeneratePassword.Enabled = $true
@@ -330,8 +331,8 @@ function Main {
                 try {
                     # Generate password
                     GenerateCSVPasswords $filePathToProcess
-                
-                } finally {
+                } 
+                finally {
                     # Release the lock when done (even if an error occurs)
                     ReleaseLock
                 }
