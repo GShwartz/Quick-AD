@@ -176,15 +176,9 @@ function ShowMoveOUForm {
     # Create a textbox for the Example input
     $textboxExample = CreateTextbox -x 10 -y 30 -width 200 -height 20 -readOnly $false
 
-    # Create a label for OU Name
-    $labelOUName = CreateLabel -text "OU Name" -x 10 -y 60 -width 200 -height 20
-
-    # Create OU name textbox
-    $textboxOUName = CreateTextbox -x 10 -y 80 -width 200 -height 20 -readOnly $false
-
     # Add TextChanged event handler to the textbox
     $textboxExample.add_TextChanged({
-        if ([string]::IsNullOrWhiteSpace($textboxOUName.Text) -and [string]::IsNullOrEmpty($textboxExample.Text)) {
+        if ([string]::IsNullOrEmpty($textboxExample.Text)) {
             $buttonMove.Enabled = $false
 
         } else {
@@ -196,165 +190,15 @@ function ShowMoveOUForm {
         }
     })
 
-    # Event handler for mouse down on Example textbox
-    $textboxExample.Add_MouseDown({
-        $textboxOUName.Text = ""
-
-    })
-
-    # Add TextChanged event handler to the textbox
-    $textboxOUName.add_TextChanged({
-        if ([string]::IsNullOrWhiteSpace($textboxOUName.Text) -and [string]::IsNullOrEmpty($textboxExample.Text)) {
-            $buttonMove.Enabled = $false
-
-        } else {
-            $buttonMove.Enabled = $true
-        }
-
-        if (-not [string]::IsNullOrEmpty($textboxExample.Text)) {
-            $textboxExample.Text = ""
-        }
-    })
-
-    # Event handler for mouse down on OU Name textbox
-    $textboxOUName.Add_MouseDown({
-        $textboxExample.Text = ""
-    })
-
     # Create the Move button
     $buttonMove = CreateButton -text "Move OU" -x 10 -y 130 -width 70 -height 25 -enabled $false
     $buttonMove.Add_Click({
-        $selectedItem = $null
-        $ouName = $textboxOUName.Text
-            
-        # Check the Computer textbox
-        if ([string]::IsNullOrEmpty($global:textboxADComputer.Text)) {
-            if (-not [string]::IsNullOrEmpty($textboxOUName.Text)) {
-                if (-not [string]::IsNullOrEmpty($global:textboxADUsername.Text)) {
-                    $currentPrimary = FindADUser $global:textboxADUsername.Text
-                    if (-not [string]::IsNullOrEmpty($global:primaryUser) -and -not $currentPrimary -eq $global:primaryUser) {$global:primaryUser = $currentPrimary}
-                }
-            }
-            # Fetch OUs
-            $ouNames = Get-ADOrganizationalUnit -Filter {(Name -like $ouName)} -Properties Name
-            if ($null -ne $ouNames -or -not [string]::IsNullOrEmpty($ouNames)) {
-                $selectedItem = ShowListBoxForm -formTitle "OU Selection" -listBoxName "OUListBox" -formWidth 400 -formHeight 300 -listBoxWidth 350 -listBoxHeight 200 -cancelX 300 -cancelY 230 -items $ouNames
-                $selectedOU = $selectedItem[1]
-                
-                $oldPrimary = $currentPrimary
-
-                # Relocate user to designated OU
-                Move-ADObject -Identity $oldPrimary -TargetPath $selectedOU
-                $currentPrimary = FindADUser $oldPrimary.SamAccountName
-                
-                $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
-                Write-Host "$($dateTime) | " -NoNewline
-                Write-Host "The user " -NoNewline -ForegroundColor Green
-                Write-Host "'$($currentPrimary.SamAccountName)' " -NoNewline 
-                Write-Host "was reloacted to " -NoNewline -ForegroundColor Green
-                Write-Host "$($selectedOU)"
-                [System.Windows.Forms.MessageBox]::Show("'$($currentPrimary.SamAccountName)' relocated successfully.", "Move OU", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-                
-                # Update statusbar message
-                UpdateStatusBar "User '$($currentPrimary.SamAccountName)' was relocated to $($selectedOU)" -color 'Black'
-
-                $global:buttonMoveOU.Enabled = $true
-                $moveOUForm.Close()
-                return $true
-            }
-            else {
-                $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
-                Write-Host "$($dateTime) | " -NoNewline
-                Write-Host "The OU " -NoNewline -ForegroundColor Red
-                Write-Host "'$($ouName)' " -NoNewline
-                Write-Host "was not found." -ForegroundColor Red
-
-                # Update statusbar message
-                UpdateStatusBar "OU '$($ouName)' was not found." -color 'Red'
-
-                # Log action
-                LogScriptExecution -logPath $logFilePath -action "OU '$($ouName)' not found." -userName $env:USERNAME
-
-                $buttonMove.Enabled = $false
-
-                # Display Error dialog
-                [System.Windows.Forms.MessageBox]::Show("OU '$($ouName)' not found.", "Not Found", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-
-                return $false
-            }
-            else {
-                HandleUser
-            }
-        }
-        elseif ([string]::IsNullOrEmpty($global:textboxADUsername.Text)) {
-            if (-not [string]::IsNullOrEmpty($textboxOUName.Text)) {
-                if (-not [string]::IsNullOrEmpty($global:textboxADComputer.Text)) {
-                    $currentPrimary = FindADComputer $global:textboxADComputer.Text
-                    if (-not [string]::IsNullOrEmpty($global:primaryUser) -and -not $currentPrimary -eq $global:primaryUser) {$global:primaryUser = $currentPrimary}
-                }
-            }
-
-            if (-not [string]::IsNullOrEmpty($textboxOUName.Text)) {
-                # Fetch all OUs with the name 'Disabled' or containing 'Disabled'
-                $ouNames = Get-ADOrganizationalUnit -Filter {(Name -like $ouName)} -Properties Name
-                if ($null -ne $ouNames -or -not [string]::IsNullOrEmpty($ouNames)) {
-                    # Get the selected OU
-                    $selectedItem = ShowListBoxForm -formTitle "OU Selection" -listBoxName "OUListBox" -formWidth 400 -formHeight 300 -listBoxWidth 350 -listBoxHeight 200 -cancelX 300 -cancelY 230 -items $ouNames
-                    $selectedOU = $selectedItem[1]
-                    $oldPrimary = $currentPrimary
-
-                    # Relocate computer to designated OU
-                    Move-ADObject -Identity $oldPrimary -TargetPath $selectedOU
-
-                    $currentPrimary = FindADComputer $oldPrimary.Name
-                    if (-not [string]::IsNullOrEmpty($global:primaryComputer)) {
-                        # Log action
-                        LogScriptExecution -logPath $logFilePath -action "Computer '$($global:primaryComputer.Name)' was relocated to $($selectedOU)" -userName $env:USERNAME
-                        
-                        # Display results
-                        $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
-                        Write-Host "$($dateTime) | " -NoNewline
-                        Write-Host "Computer " -NoNewline -ForegroundColor Green
-                        Write-Host "'$($currentPrimary.Name)' " -NoNewline 
-                        Write-Host "was reloacted to " -NoNewline -ForegroundColor Green
-                        Write-Host "$($selectedOU)"
-                        [System.Windows.Forms.MessageBox]::Show("'$($currentPrimary.Name)' relocated successfully.", "Move OU", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-
-                        # Update statusbar message
-                        UpdateStatusBar "Computer '$($currentPrimary.Name)' was relocated to $($selectedOU)." -color 'Black'
-
-                        $global:buttonMoveOu.Enabled = $true
-                        $moveOUForm.Close()
-                        $moveOUForm.Dispose()
-                        return $true
-                    }
-                }
-                else {
-                    $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
-                    Write-Host "$($dateTime) | " -NoNewline
-                    Write-Host "The OU " -NoNewline -ForegroundColor Red
-                    Write-Host "'$($ouName)' " -NoNewline
-                    Write-Host "was not found." -ForegroundColor Red
-
-                    # Update statusbar message
-                    UpdateStatusBar "OU '$($ouName)' not found." -color 'Red'
-
-                    # Log the start of script execution
-                    LogScriptExecution -logPath $logFilePath -action "OU '$($ouName)' not found." -userName $env:USERNAME
-
-                    # Display Error dialog
-                    [System.Windows.Forms.MessageBox]::Show("OU '$($ouName)' not found.", "Not Found", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-
-                    $buttonMove.Enabled = $false
-                    return $false
-                }
-            }
-            else {HandleComputer}
-
-            $global:buttonGeneratePassword.Enabled = $false
-            $global:buttonCopyGroups.Enabled = $false
-            $global:buttonRemoveGroups.Enabled = $false
-        }
+        if (-not [string]::IsNullOrEmpty($global:textboxADUsername.Text)) {HandleUser}
+        else {HandleComputer}
+    
+        $global:buttonGeneratePassword.Enabled = $false
+        $global:buttonCopyGroups.Enabled = $false
+        $global:buttonRemoveGroups.Enabled = $false
     })
 
     # Create a 'Cancel' button
@@ -410,8 +254,6 @@ function ShowMoveOUForm {
     })
 
     # Add the form controllers
-    $moveOUForm.Controls.Add($labelOUName)
-    $moveOUForm.Controls.Add($textboxOUName)
     $moveOUForm.Controls.Add($textboxExample)
     $moveOUForm.Controls.Add($buttonMove)
     $moveOUForm.Controls.Add($buttonCancelMoveOU)
@@ -461,6 +303,7 @@ function ShowCSVMoveUserOUForm {
                 # Log action
                 LogScriptExecution -logPath $global:logFilePath -action "Move OU on users CSV file" -userName $env:USERNAME
 
+                # Manage buttons
                 $buttonMoveCSVUser.Enabled = $false
                 $buttonCancelMoveOU.Enabled = $false
 
@@ -468,101 +311,97 @@ function ShowCSVMoveUserOUForm {
                 $ouName = $textboxOUName.Text
                 if (-not [string]::IsNullOrEmpty($ouName)) {
                     # Fetch OUs
-                    $ouNames = Get-ADOrganizationalUnit -Filter {(Name -like $ouName)} -Properties Name
-                    if ($null -ne $ouNames) {
-                        # Create a form
-                        $formList = CreateCanvas "OU Selection" -x 400 -y 300
-                        $listBox = CreateListBox -name "OUListBox" -width 350 -height 200 -x 20 -y 20 -items $ouNames
-                        $buttonSelect = CreateButton -text "Select" -x 20 -y 230 -width 80 -height 25 -enabled $false
-                        $buttonSelect.Add_Click({
-                            $buttonSelect.Enabled = $false
-
-                            if (-not [string]::IsNullOrEmpty($listBox.SelectedItem.ToString())) {
-                                $selectedItem = $listBox.SelectedItem.ToString()
+                    $ouNames = Get-ADOrganizationalUnit -Filter {(Name -like $ouName)} -Properties DistinguishedName
+                    if ($null -ne $ouNames -or [string]::IsNullOrEmpty($ouNames)) {
+                        $selectedItem = ShowListBoxForm -formTitle "OU Selection" -listBoxName "OUListBox" -formWidth 400 -formHeight 300 -listBoxWidth 350 -listBoxHeight 200 -cancelX 300 -cancelY 230 -items $ouNames
+                        $selectedOU = $selectedItem[1]
                                 
-                                $csvPath = $textboxCSVFilePath.Text
-                                $csvData = Import-Csv -Path $csvPath
+                        # Import CSV
+                        $csvPath = $textboxCSVFilePath.Text
+                        $csvData = Import-Csv -Path $csvPath
 
-                                foreach ($row in $csvData) {
-                                    # Access the "Username" column from each row
-                                    $username = $row.Username
-                                    if (-not [string]::IsNullOrEmpty($username)) {
-                                        # Get the AD user parameters
-                                        $user = FindADUser $username
-                            
-                                        # Check if the user was found
-                                        if (-not [string]::IsNullOrEmpty($user)) {
-                                            if ($user.Enabled) {
-                                                # Retrieve the distinguished name
-                                                $userDistinguishedName = $user.DistinguishedName
-                                                
-                                                # Relocate user to designated OU
-                                                Move-ADObject -Identity $userDistinguishedName -TargetPath $selectedItem
-                            
-                                                # Display summery in console
-                                                $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
-                                                Write-Host "$($dateTime) | " -NoNewline 
-                                                Write-Host "User " -NoNewline -ForegroundColor Green
-                                                Write-Host "'$($username)' " -NoNewline 
-                                                Write-Host "relocated to " -NoNewline -ForegroundColor Green
-                                                Write-Host "$($selectedItem)." 
-                            
-                                                # Log action
-                                                LogScriptExecution -logPath $global:logFilePath -action "User $($username) relocated to $($selectedItem)." -userName $env:USERNAME
-                                            }
-                                            else {
-                                                $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
-                                                Write-Host "$($dateTime) | " -NoNewline 
-                                                Write-Host "User " -NoNewline -ForegroundColor Red
-                                                Write-Host "'$($username)' " -NoNewline
-                                                Write-Host "is disabled. " -NoNewline -ForegroundColor Red
-                                                Write-Host "skipping..." -ForegroundColor Yellow
-                            
-                                                # Log action
-                                                LogScriptExecution -logPath $global:logFilePath -action "User '$($username)' is disabled. skipping" -userName $env:USERNAME
-                                            }
-                                        }
-                            
-                                        # Apply timer to prevent DOS
-                                        Start-Sleep -Milliseconds 300
+                        # Perform operations on each CSV user
+                        foreach ($row in $csvData) {
+                            # Access the "Username" column from each row
+                            $username = $row.Username
+                            if (-not [string]::IsNullOrEmpty($username)) {
+                                # Get the AD user parameters
+                                $user = FindADUser $username
+                                if (-not [string]::IsNullOrEmpty($user)) {
+                                    if ($user.Enabled) {
+                                        # Retrieve the distinguished name
+                                        $userDistinguishedName = $user.DistinguishedName
+                                        
+                                        # Relocate user to designated OU
+                                        Move-ADObject -Identity $userDistinguishedName -TargetPath $selectedOU
+                    
+                                        # Display summery in console
+                                        $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                                        Write-Host "$($dateTime) | " -NoNewline 
+                                        Write-Host "User " -NoNewline -ForegroundColor Green
+                                        Write-Host "'$($username)' " -NoNewline 
+                                        Write-Host "relocated to " -NoNewline -ForegroundColor Green
+                                        Write-Host "$($selectedOU)." 
+                    
+                                        # Log action
+                                        LogScriptExecution -logPath $global:logFilePath -action "User $($username) relocated to $($selectedOU)." -userName $env:USERNAME
+                                    }
+                                    else {
+                                        $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                                        Write-Host "$($dateTime) | " -NoNewline 
+                                        Write-Host "User " -NoNewline -ForegroundColor Yellow
+                                        Write-Host "'$($username)' " -NoNewline
+                                        Write-Host "is disabled. " -NoNewline -ForegroundColor Yellow
+                                        Write-Host "skipping..." -ForegroundColor Yellow
+                    
+                                        # Log action
+                                        LogScriptExecution -logPath $global:logFilePath -action "User '$($username)' is disabled. skipping" -userName $env:USERNAME
                                     }
                                 }
+                                else {
+                                    $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                                    Write-Host "$($dateTime) | " -NoNewline 
+                                    Write-Host "User " -NoNewline -ForegroundColor Red
+                                    Write-Host "'$($username)' " -NoNewline
+                                    Write-Host "was not found. " -ForegroundColor Red
+
+                                    # Log action
+                                    LogScriptExecution -logPath $global:logFilePath -action "User '$($username)' was not found." -userName $env:USERNAME
+                                }
+                    
+                                # Apply timer to prevent DOS
+                                Start-Sleep -Milliseconds 300
                             }
+                        }
+                        $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                        Write-Host "$($dateTime) | " -NoNewline
+                        Write-Host "CSV users relocated successfully." -ForegroundColor Green
 
-                            $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
-                            Write-Host "$($dateTime) | " -NoNewline
-                            Write-Host "CSV users relocated successfully." -ForegroundColor Green
+                        # Log action
+                        LogScriptExecution -logPath $global:logFilePath -action "CSV users relocated successfully." -userName $env:USERNAME
 
-                            # Log action
-                            LogScriptExecution -logPath $global:logFilePath -action "CSV users relocated successfully." -userName $env:USERNAME
+                        # Update statusbar message
+                        UpdateStatusBar "CSV users relocated successfully." -color 'Black'
 
-                            # Update statusbar message
-                            UpdateStatusBar "CSV users relocated successfully." -color 'Black'
+                        $csvUserMoveOUForm.Close()
+                        $csvUserMoveOUForm.Dispose()
+                    }
+                    else {
+                        $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                        Write-Host "$($dateTime) | " -NoNewline
+                        Write-Host "The OU " -NoNewline -ForegroundColor Red
+                        Write-Host "'$($ouName)' " -NoNewline
+                        Write-Host "was not found." -ForegroundColor Red
 
-                            $formList.Close()
-                            $formList.Dispose()
-                            $csvUserMoveOUForm.Close()
-                            $csvUserMoveOUForm.Dispose()
-                        })
+                        UpdateStatusBar "'$($ouName)' was not found." -color 'Red'
 
-                        # Add a Hover event for the ListBox
-                        $listBox.Add_MouseDown({
-                            $buttonSelect.Enabled = $true
-                        })
+                        # Log action
+                        LogScriptExecution -logPath $global:logFilePath -action "'$($ouName)' was not found." -userName $env:USERNAME
 
-                        $buttonCancelList = CreateButton -text "Cancel" -x 300 -y 230 -width 70 -height 25 -enabled $true
-                        $buttonCancelList.Add_Click({
-                            $formList.Close()
-                            $formList.Dispose()
-                        })
+                        # Display Error dialog
+                        [System.Windows.Forms.MessageBox]::Show("'$($ouName)' was not found.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
 
-                        # Add controls to the form
-                        $formList.Controls.Add($listBox)
-                        $formList.Controls.Add($buttonSelect)
-                        $formList.Controls.Add($buttonCancelList)
-
-                        # Show the form
-                        $formList.ShowDialog()
+                        $buttonCancelMoveOU.Enabled = $true
                     }
                 }
                 else {
@@ -587,8 +426,8 @@ function ShowCSVMoveUserOUForm {
                         Write-Host "'$($example)' " -NoNewline -ForegroundColor White
                         Write-Host "not found." -ForegroundColor Red
 
-                        # Disable the move button
-                        $buttonMove.Enabled = $false
+                        # Manage buttons
+                        $buttonMoveCSVUser.Enabled = $false
                         $buttonCancelMoveOU.Enabled = $true
 
                         # Update statusbar message
@@ -681,112 +520,80 @@ function ShowCSVMoveComputerOUForm {
                 $computerOUName = $textboxOUName.Text
                 if (-not [string]::IsNullOrEmpty($computerOUName)) {
                     # Fetch OUs
-                    $ouNames = Get-ADOrganizationalUnit -Filter {(Name -like $computerOUName)} -Properties Name
+                    $ouNames = Get-ADOrganizationalUnit -Filter {(Name -like $computerOUName)} -Properties DistinguishedName
                     if ($null -ne $ouNames) {
-                        # Create a form
-                        $formList = CreateCanvas "OU Selection" -x 400 -y 300
-                        $listBox = CreateListBox -name "OUListBox" -width 350 -height 200 -x 20 -y 20 -items $ouNames
-                        $buttonSelect = CreateButton -text "Select" -x 20 -y 230 -width 80 -height 25 -enabled $false
-                        $buttonSelect.Add_Click({
-                            $buttonSelect.Enabled = $false
-
-                            if (-not [string]::IsNullOrEmpty($listBox.SelectedItem.ToString())) {
-                                # Save the user selection
-                                $selectedItem = $listBox.SelectedItem.ToString()
+                        $selectedItem = ShowListBoxForm -formTitle "OU Selection" -listBoxName "OUListBox" -formWidth 400 -formHeight 300 -listBoxWidth 350 -listBoxHeight 200 -cancelX 300 -cancelY 230 -items $ouNames
+                        $selectedOU = $selectedItem[1]
                                 
-                                # Import CSV
-                                $csvPath = $textboxCSVFilePath.Text
-                                $csvData = Import-Csv -Path $csvPath
+                        # Import CSV
+                        $csvPath = $textboxCSVFilePath.Text
+                        $csvData = Import-Csv -Path $csvPath
 
-                                foreach ($row in $csvData) {
-                                    # Access the "ComputerName" column from each row
-                                    $computerName = $row.ComputerName
-                                    if (-not [string]::IsNullOrEmpty($computerName)) {
-                                        # Get the AD user parameters
-                                        $computer = FindADComputer $computerName
-                            
-                                        # Check if the user was found
-                                        if (-not [string]::IsNullOrEmpty($computer)) {
-                                            if ($computer.Enabled) {
-                                                # Retrieve the distinguished name
-                                                $computerDistinguishedName = $computer.DistinguishedName
-                                                
-                                                # Relocate user to designated OU
-                                                Move-ADObject -Identity $computerDistinguishedName -TargetPath $selectedItem
-                            
-                                                # Display summery in console
-                                                $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
-                                                Write-Host "$($dateTime) | " -NoNewline 
-                                                Write-Host "Computer " -NoNewline -ForegroundColor Green
-                                                Write-Host "'$($computer.Name)' " -NoNewline 
-                                                Write-Host "has been relocated to " -NoNewline -ForegroundColor Green
-                                                Write-Host "$($selectedItem)." 
-                            
-                                                # Log action
-                                                LogScriptExecution -logPath $global:logFilePath -action "Computer $($computer.Name) relocated to $($selectedItem)." -userName $env:USERNAME
+                        foreach ($row in $csvData) {
+                            # Access the "ComputerName" column from each row
+                            $computerName = $row.ComputerName
+                            if (-not [string]::IsNullOrEmpty($computerName)) {
+                                # Get the AD user parameters
+                                $computer = FindADComputer $computerName
+                    
+                                # Check if the user was found
+                                if (-not [string]::IsNullOrEmpty($computer)) {
+                                    if ($computer.Enabled) {
+                                        # Retrieve the distinguished name
+                                        $computerDistinguishedName = $computer.DistinguishedName
+                                        
+                                        # Relocate user to designated OU
+                                        Move-ADObject -Identity $computerDistinguishedName -TargetPath $selectedOU
+                    
+                                        # Display summery in console
+                                        $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                                        Write-Host "$($dateTime) | " -NoNewline 
+                                        Write-Host "Computer " -NoNewline -ForegroundColor Green
+                                        Write-Host "'$($computer.Name)' " -NoNewline 
+                                        Write-Host "has been relocated to " -NoNewline -ForegroundColor Green
+                                        Write-Host "$($selectedOU)." 
+                    
+                                        # Log action
+                                        LogScriptExecution -logPath $global:logFilePath -action "Computer $($computer.Name) relocated to $($selectedOU)." -userName $env:USERNAME
 
-                                                Start-Sleep -Milliseconds 300
-                                            }
-                                            else {
-                                                # Log action
-                                                LogScriptExecution -logPath $global:logFilePath -action "Computer '$($computer.Name)' is disabled. skipping" -userName $env:USERNAME
-
-                                                $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
-                                                Write-Host "$($dateTime) | " -NoNewline 
-                                                Write-Host "User " -NoNewline -ForegroundColor Red
-                                                Write-Host "'$($computer.Name)' " -NoNewline
-                                                Write-Host "is disabled. " -NoNewline -ForegroundColor Red
-                                                Write-Host "skipping..." -ForegroundColor Yellow
-                                            }
-                                        }
                                         Start-Sleep -Milliseconds 300
                                     }
+                                    else {
+                                        # Log action
+                                        LogScriptExecution -logPath $global:logFilePath -action "Computer '$($computer.Name)' is disabled. skipping" -userName $env:USERNAME
+
+                                        $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                                        Write-Host "$($dateTime) | " -NoNewline 
+                                        Write-Host "User " -NoNewline -ForegroundColor Red
+                                        Write-Host "'$($computer.Name)' " -NoNewline
+                                        Write-Host "is disabled. " -NoNewline -ForegroundColor Red
+                                        Write-Host "skipping..." -ForegroundColor Yellow
+                                    }
                                 }
+                                Start-Sleep -Milliseconds 300
                             }
-
-                            # Log action
-                            LogScriptExecution -logPath $global:logFilePath -action "CSV computers relocated successfully." -userName $env:USERNAME
-
-                            # Display results
-                            $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
-                            Write-Host "$($dateTime) | " -NoNewline
-                            Write-Host "CSV computers relocation completed." -ForegroundColor Green
-
-                            # Update statusbar message
-                            UpdateStatusBar "CSV computers relocation completed." -color 'Black'
-
-                            # Manage buttons
-                            $global:buttonGeneratePassword.Enabled = $false
-                            $global:buttonCopyGroups.Enabled = $false
-                            $global:buttonRemoveGroups.Enabled = $false
-
-                            # Close the form
-                            $formList.Close()
-                            $formList.Dispose()
-                            $csvComputerMoveOUForm.Close()
-                            $csvComputerMoveOUForm.Dispose()
-                        })
-
-                        # Add a Hover event for the ListBox
-                        $listBox.Add_MouseDown({
-                            $buttonSelect.Enabled = $true
-                        })
-
-                        $buttonCancelList = CreateButton -text "Cancel" -x 300 -y 230 -width 70 -height 25 -enabled $true
-                        $buttonCancelList.Add_Click({
-                            $formList.Close()
-                            $formList.Dispose()
-                        })
-
-                        # Add controls to the form
-                        $formList.Controls.Add($listBox)
-                        $formList.Controls.Add($buttonSelect)
-                        $formList.Controls.Add($buttonCancelList)
-
-                        # Show the form
-                        $formList.ShowDialog()
+                        }
                     }
-                }
+
+                    # Log action
+                    LogScriptExecution -logPath $global:logFilePath -action "CSV computers relocated successfully." -userName $env:USERNAME
+
+                    # Display results
+                    $dateTime = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
+                    Write-Host "$($dateTime) | " -NoNewline
+                    Write-Host "CSV computers relocation completed." -ForegroundColor Green
+
+                    # Update statusbar message
+                    UpdateStatusBar "CSV computers relocation completed." -color 'Black'
+
+                    # Manage buttons
+                    $global:buttonGeneratePassword.Enabled = $false
+                    $global:buttonCopyGroups.Enabled = $false
+                    $global:buttonRemoveGroups.Enabled = $false
+
+                    $csvComputerMoveOUForm.Close()
+                    $csvComputerMoveOUForm.Dispose()
+                    }
                 else {
                     $example = $textboxExample.Text
                     $exampleComputer = FindADComputer $example
