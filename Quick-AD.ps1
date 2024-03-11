@@ -1,6 +1,5 @@
 ﻿# 1. Complete MoveOU for CSV by listBox selection. - add output to not found/add not found error dialogboxes.
 # 2. Add locked-out validation to where it's missing.
-# 3. Add a validation for password generator - if one of the initials is empty then check if the last name or the display name have 2 names in them.
 
 # Import form modules
 Add-Type -AssemblyName System.Windows.Forms
